@@ -62,17 +62,7 @@
           "faceIDPermission": "Allow Yípo to use Face ID for app lock."
         }
       ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "extraGradleProperties": {
-              "reactNativeArchitectures": "arm64-v8a,armeabi-v7a",
-              "org.gradle.jvmargs": "-Xmx3072m -XX:MaxMetaspaceSize=1024m"
-            }
-          }
-        }
-      ]
+      "./plugins/withAndroidArchitectures"
     ],
     "experiments": {
       "typedRoutes": true
