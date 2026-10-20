@@ -25,6 +25,7 @@
   - Interactive button with spring scale (0.97) and haptic feedback.
   - `eas.json` configured with `development` (buildType APK), `preview` (APK), and `production` (AAB).
   - `expo-dev-client` installed.
+  - `expo-build-properties` configured to restrict Android build to `arm64-v8a,armeabi-v7a` and set JVM heap to prevent OOM daemon crash.
 - **Half-Done**:
   - Testing with user on real Samsung device.
 - **Known Bugs**: None.
