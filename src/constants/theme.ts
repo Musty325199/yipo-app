@@ -5,30 +5,33 @@ export interface ColorTokens {
   muted: string;
   line: string;
   accent: string;
+  accentText: string;
   paid: string;
   unpaid: string;
 }
 
 export const LightColors: ColorTokens = {
-  bg: '#F4EEE0',
+  bg: '#F8FAF9',
   surface: '#FFFFFF',
-  ink: '#10241E',
-  muted: '#5E6B64',
-  line: '#E3DAC6',
-  accent: '#F0B429',
-  paid: '#2FA36B',
-  unpaid: '#E4572E',
+  ink: '#0A1C16',
+  muted: '#4E655B',
+  line: '#E2E8E4',
+  accent: '#F59E0B',
+  accentText: '#B45309',
+  paid: '#10B981',
+  unpaid: '#EF4444',
 };
 
 export const DarkColors: ColorTokens = {
-  bg: '#0C1A16',
-  surface: '#14271F',
-  ink: '#F4EEE0',
-  muted: '#9AA89F',
-  line: '#213A30',
-  accent: '#F0B429',
-  paid: '#3DBE80',
-  unpaid: '#F26B45',
+  bg: '#081410',
+  surface: '#0F221B',
+  ink: '#F9FAFB',
+  muted: '#8A9E95',
+  line: '#1A3329',
+  accent: '#FBBF24',
+  accentText: '#FBBF24',
+  paid: '#10B981',
+  unpaid: '#F87171',
 };
 
 export const Spacing = {

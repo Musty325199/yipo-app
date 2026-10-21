@@ -44,7 +44,7 @@ export function Button({
   };
 
   let backgroundColor = colors.accent;
-  let textColor = colors.ink;
+  let textColor = '#0A1C16';
   let borderColor: string | undefined = undefined;
 
   if (variant === 'secondary') {

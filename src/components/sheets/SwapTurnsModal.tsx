@@ -157,7 +157,7 @@ export function SwapTurnsModal({
                       style={[
                         styles.memberPillText,
                         {
-                          color: isSelected ? colors.ink : colors.muted,
+                          color: isSelected ? '#0A1C16' : colors.muted,
                           fontFamily: typography.bodySemiBoldFont,
                         },
                       ]}>
@@ -198,7 +198,7 @@ export function SwapTurnsModal({
                       style={[
                         styles.memberPillText,
                         {
-                          color: isSelected ? colors.ink : colors.muted,
+                          color: isSelected ? '#0A1C16' : colors.muted,
                           fontFamily: typography.bodySemiBoldFont,
                         },
                       ]}>

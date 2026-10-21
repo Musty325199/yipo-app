@@ -276,10 +276,10 @@ function RoundDot({
     return 15 + pulse.value * 6;
   });
 
-  // Halo opacity
+  // Halo opacity with rich warm amber glow
   const haloColor = useDerivedValue(() => {
-    const alpha = (0.45 - pulse.value * 0.35).toFixed(2);
-    return `rgba(240, 180, 41, ${alpha})`;
+    const alpha = (0.5 - pulse.value * 0.35).toFixed(2);
+    return `rgba(245, 158, 11, ${alpha})`;
   });
 
   // Determine dot color
@@ -288,10 +288,10 @@ function RoundDot({
 
   if (isCollector) {
     dotColor = accentColor;
-    dotRadius = 14;
+    dotRadius = 15;
   } else if (isPaid) {
     dotColor = paidColor;
-    dotRadius = 11;
+    dotRadius = 12;
   } else if (isPartPaid) {
     dotColor = partPaidColor;
     dotRadius = 10;
@@ -304,6 +304,14 @@ function RoundDot({
         <Circle cx={cx} cy={cy} r={haloRadius} color={haloColor} />
       )}
 
+      {/* Outer border ring for high definition */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={dotRadius + 2}
+        color={surfaceColor}
+      />
+
       {/* Selected highlight ring */}
       {isSelected && (
         <Circle
@@ -311,7 +319,7 @@ function RoundDot({
           cy={cy}
           r={dotRadius + 5}
           style="stroke"
-          strokeWidth={2}
+          strokeWidth={2.5}
           color={accentColor}
         />
       )}
@@ -322,6 +330,11 @@ function RoundDot({
       {/* Paid inner check dot */}
       {isPaid && !isCollector && (
         <Circle cx={cx} cy={cy} r={4} color={surfaceColor} />
+      )}
+
+      {/* Collector inner jewel spotlight */}
+      {isCollector && (
+        <Circle cx={cx} cy={cy} r={5} color="#0A1C16" />
       )}
     </Group>
   );

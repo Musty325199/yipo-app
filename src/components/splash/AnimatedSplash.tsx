@@ -20,9 +20,9 @@ interface AnimatedSplashProps {
   onAnimationComplete: () => void;
 }
 
-const INK_BG = '#10241E';
-const CREAM = '#F4EEE0';
-const SAFFRON = '#F0B429';
+const INK_BG = '#081410';
+const CREAM = '#F8FAF9';
+const SAFFRON = '#F59E0B';
 
 const CANVAS_SIZE = 320;
 const CENTER = CANVAS_SIZE / 2;

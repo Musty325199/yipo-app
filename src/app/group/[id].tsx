@@ -282,7 +282,7 @@ export default function GroupRoundScreen() {
             <Text
               style={[
                 styles.navBackText,
-                { color: colors.accent, fontFamily: typography.bodySemiBoldFont },
+                { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
               ]}>
               ← Groups
             </Text>
@@ -590,14 +590,14 @@ export default function GroupRoundScreen() {
                         style={[
                           styles.collectorPill,
                           {
-                            backgroundColor: isDark ? 'rgba(240, 180, 41, 0.2)' : '#FFF3D4',
+                            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
                             borderRadius: radii.pill,
                           },
                         ]}>
                         <Text
                           style={[
                             styles.collectorPillText,
-                            { color: colors.accent, fontFamily: typography.bodyMediumFont },
+                            { color: colors.accentText, fontFamily: typography.bodySemiBoldFont, fontWeight: '700' },
                           ]}>
                           Collector
                         </Text>

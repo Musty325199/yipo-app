@@ -253,7 +253,7 @@ export default function SettingsScreen() {
             ]}>
             <View style={styles.rowItem}>
               <View style={[styles.iconBox, { backgroundColor: colors.bg, borderRadius: 10 }]}>
-                <LockIcon size={20} color={colors.accent} strokeWidth={2} />
+                <LockIcon size={20} color={colors.accentText} strokeWidth={2} />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text
@@ -372,7 +372,7 @@ export default function SettingsScreen() {
               },
             ]}>
             <View style={styles.disclaimerRow}>
-              <InfoIcon size={22} color={colors.accent} strokeWidth={2} />
+              <InfoIcon size={22} color={colors.accentText} strokeWidth={2} />
               <Text
                 style={[
                   styles.disclaimerText,

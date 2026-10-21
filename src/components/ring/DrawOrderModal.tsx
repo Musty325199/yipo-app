@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -40,7 +40,7 @@ interface DrawOrderModalProps {
 const CANVAS_SIZE = 260;
 const CENTER = CANVAS_SIZE / 2;
 const RING_RADIUS = 88;
-const DOT_RADIUS = 12;
+const DOT_RADIUS = 13;
 
 export function DrawOrderModal({
   visible,
@@ -55,29 +55,58 @@ export function DrawOrderModal({
   const [drawnList, setDrawnList] = useState<DraftMember[]>([]);
 
   const rotation = useSharedValue(0);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Cryptographically random shuffle using expo-crypto
+  // Cryptographically secure shuffle with fallback
   const performShuffle = () => {
-    const list = [...members];
-    const randomBuffer = new Uint32Array(list.length);
-    Crypto.getRandomValues(randomBuffer);
+    try {
+      const list = [...members];
+      for (let i = list.length - 1; i > 0; i--) {
+        const randomBytes = Crypto.getRandomBytes(4);
+        const randomVal =
+          (randomBytes[0] |
+            (randomBytes[1] << 8) |
+            (randomBytes[2] << 16) |
+            (randomBytes[3] << 24)) >>>
+          0;
+        const j = randomVal % (i + 1);
+        const temp = list[i];
+        list[i] = list[j];
+        list[j] = temp;
+      }
 
-    for (let i = list.length - 1; i > 0; i--) {
-      const j = randomBuffer[i] % (i + 1);
-      const temp = list[i];
-      list[i] = list[j];
-      list[j] = temp;
+      const reordered = list.map((m, idx) => ({
+        ...m,
+        turn_order: idx + 1,
+      }));
+
+      setDrawnList(reordered);
+      setIsSpinning(false);
+      setHasDrawn(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch {
+      // Fallback
+      const list = [...members];
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = list[i];
+        list[i] = list[j];
+        list[j] = temp;
+      }
+      const reordered = list.map((m, idx) => ({
+        ...m,
+        turn_order: idx + 1,
+      }));
+      setDrawnList(reordered);
+      setIsSpinning(false);
+      setHasDrawn(true);
     }
+  };
 
-    const reordered = list.map((m, idx) => ({
-      ...m,
-      turn_order: idx + 1,
-    }));
-
-    setDrawnList(reordered);
-    setIsSpinning(false);
-    setHasDrawn(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleSpinFinished = () => {
+    timeoutsRef.current.forEach((t) => clearTimeout(t));
+    timeoutsRef.current = [];
+    performShuffle();
   };
 
   const handleStartDraw = () => {
@@ -99,24 +128,31 @@ export function DrawOrderModal({
     setIsSpinning(true);
     rotation.value = 0;
 
-    // Haptic tick generator during the spin
-    const interval = setInterval(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, 120);
+    // Clear previous timeouts
+    timeoutsRef.current.forEach((t) => clearTimeout(t));
+    timeoutsRef.current = [];
 
-    // 8 full rotations + extra offset
+    // Schedule tactile decelerating clicks
+    const tickDelays = [80, 180, 320, 520, 800, 1200, 1750];
+    tickDelays.forEach((delay) => {
+      const t = setTimeout(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }, delay);
+      timeoutsRef.current.push(t);
+    });
+
+    // 6 full rotations + random extra offset
     const totalRotation = Math.PI * 2 * 6 + Math.random() * Math.PI * 2;
 
     rotation.value = withTiming(
       totalRotation,
       {
-        duration: 2600,
-        easing: Easing.bezier(0.12, 1, 0.22, 1), // silk-smooth deceleration
+        duration: 2500,
+        easing: Easing.bezier(0.12, 1, 0.22, 1), // Silk-smooth deceleration
       },
       (finished) => {
         if (finished) {
-          runOnJS(clearInterval)(interval);
-          runOnJS(performShuffle)();
+          runOnJS(handleSpinFinished)();
         }
       }
     );
@@ -143,6 +179,11 @@ export function DrawOrderModal({
               borderColor: colors.line,
               borderWidth: isDark ? 1 : 0,
               padding: spacing.lg,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 8,
             },
           ]}>
           <Text
@@ -163,6 +204,16 @@ export function DrawOrderModal({
           {/* Skia Spinning Ring */}
           <View style={styles.ringContainer}>
             <Canvas style={styles.canvas}>
+              {/* Outer guide track */}
+              <Circle
+                cx={CENTER}
+                cy={CENTER}
+                r={RING_RADIUS}
+                style="stroke"
+                strokeWidth={2}
+                color={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15,36,29,0.08)'}
+              />
+
               <Group>
                 {displayList.map((m, i) => {
                   const initialAngle = (i * 2 * Math.PI) / displayList.length - Math.PI / 2;
@@ -177,6 +228,7 @@ export function DrawOrderModal({
                       isCollector={isCurrent}
                       accentColor={colors.accent}
                       inkColor={colors.ink}
+                      surfaceColor={colors.surface}
                     />
                   );
                 })}
@@ -203,14 +255,17 @@ export function DrawOrderModal({
                     {
                       backgroundColor: idx === 0 ? colors.accent : colors.bg,
                       borderRadius: radii.pill,
+                      borderColor: colors.line,
+                      borderWidth: 1,
                     },
                   ]}>
                   <Text
                     style={[
                       styles.orderBadgeText,
                       {
-                        color: colors.ink,
+                        color: idx === 0 ? '#0A1C16' : colors.ink,
                         fontFamily: typography.headingSemiBoldFont,
+                        fontWeight: '700',
                       },
                     ]}>
                     #{idx + 1}
@@ -235,13 +290,22 @@ export function DrawOrderModal({
                 </View>
 
                 {idx === 0 && (
-                  <Text
+                  <View
                     style={[
-                      styles.collectorTag,
-                      { color: colors.accent, fontFamily: typography.bodySemiBoldFont },
+                      styles.collectorPill,
+                      {
+                        backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+                        borderRadius: radii.pill,
+                      },
                     ]}>
-                    Collects first
-                  </Text>
+                    <Text
+                      style={[
+                        styles.collectorTag,
+                        { color: '#B45309', fontFamily: typography.bodySemiBoldFont },
+                      ]}>
+                      Collects first
+                    </Text>
+                  </View>
                 )}
               </View>
             ))}
@@ -276,6 +340,7 @@ interface AnimatedDotProps {
   isCollector: boolean;
   accentColor: string;
   inkColor: string;
+  surfaceColor: string;
 }
 
 function AnimatedDot({
@@ -284,33 +349,48 @@ function AnimatedDot({
   isCollector,
   accentColor,
   inkColor,
+  surfaceColor,
 }: AnimatedDotProps) {
   const currentAngle = useDerivedValue(() => initialAngle + rotation.value);
 
   const cx = useDerivedValue(() => {
-    const r = isCollector ? RING_RADIUS + 12 : RING_RADIUS;
+    const r = isCollector ? RING_RADIUS + 10 : RING_RADIUS;
     return CENTER + r * Math.cos(currentAngle.value);
   });
 
   const cy = useDerivedValue(() => {
-    const r = isCollector ? RING_RADIUS + 12 : RING_RADIUS;
+    const r = isCollector ? RING_RADIUS + 10 : RING_RADIUS;
     return CENTER + r * Math.sin(currentAngle.value);
   });
 
   return (
-    <Circle
-      cx={cx}
-      cy={cy}
-      r={isCollector ? DOT_RADIUS + 3 : DOT_RADIUS}
-      color={isCollector ? accentColor : inkColor}
-    />
+    <Group>
+      {/* Outer border ring */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={isCollector ? DOT_RADIUS + 4 : DOT_RADIUS + 1}
+        color={surfaceColor}
+      />
+      {/* Main fill dot */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={isCollector ? DOT_RADIUS + 2 : DOT_RADIUS}
+        color={isCollector ? accentColor : inkColor}
+      />
+      {/* Inner collector spotlight center */}
+      {isCollector && (
+        <Circle cx={cx} cy={cy} r={5} color="#0A1C16" />
+      )}
+    </Group>
   );
 }
 
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -345,8 +425,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   orderBadge: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -359,8 +439,13 @@ const styles = StyleSheet.create({
   resultMemberPhone: {
     fontSize: 12,
   },
+  collectorPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
   collectorTag: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '700',
   },
   buttonRow: {
     flexDirection: 'row',

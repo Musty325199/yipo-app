@@ -64,7 +64,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
               styles.iconCircle,
               { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.pill },
             ]}>
-            <LockIcon size={40} color={colors.accent} strokeWidth={2} />
+            <LockIcon size={40} color={colors.accentText} strokeWidth={2} />
           </View>
 
           <Text
@@ -111,7 +111,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                 <Text
                   style={[
                     styles.pinSwitchText,
-                    { color: colors.accent, fontFamily: typography.bodySemiBoldFont },
+                    { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
                   ]}>
                   Use Passcode / PIN instead
                 </Text>
@@ -155,7 +155,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                 <Text
                   style={[
                     styles.pinSwitchText,
-                    { color: colors.accent, fontFamily: typography.bodySemiBoldFont },
+                    { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
                   ]}>
                   Switch to Biometrics
                 </Text>

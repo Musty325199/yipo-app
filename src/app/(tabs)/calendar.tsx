@@ -99,7 +99,7 @@ export default function CalendarScreen() {
               },
             ]}>
             <View style={[styles.iconWrapper, { marginBottom: spacing.base }]}>
-              <CalendarIcon size={44} color={colors.accent} strokeWidth={1.8} />
+              <CalendarIcon size={44} color={colors.accentText} strokeWidth={1.8} />
             </View>
             <Text
               style={[

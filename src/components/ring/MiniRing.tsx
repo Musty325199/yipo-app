@@ -49,13 +49,28 @@ export function MiniRing({
       <Canvas style={{ width: size, height: size }}>
         <Group>
           {dots.map((dot) => (
-            <Circle
-              key={dot.key}
-              cx={dot.cx}
-              cy={dot.cy}
-              r={dot.radius}
-              color={dot.color}
-            />
+            <React.Fragment key={dot.key}>
+              <Circle
+                cx={dot.cx}
+                cy={dot.cy}
+                r={dot.radius + 1.5}
+                color={colors.surface}
+              />
+              <Circle
+                cx={dot.cx}
+                cy={dot.cy}
+                r={dot.radius}
+                color={dot.color}
+              />
+              {dot.key === highlightIndex && (
+                <Circle
+                  cx={dot.cx}
+                  cy={dot.cy}
+                  r={3}
+                  color="#0A1C16"
+                />
+              )}
+            </React.Fragment>
           ))}
         </Group>
       </Canvas>

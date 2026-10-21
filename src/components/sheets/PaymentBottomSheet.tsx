@@ -270,7 +270,7 @@ function PaymentSheetContent({
                   style={{ marginTop: 4 }}>
                   <Text
                     style={{
-                      color: colors.accent,
+                      color: colors.accentText,
                       fontSize: 12,
                       fontFamily: typography.bodySemiBoldFont,
                     }}>

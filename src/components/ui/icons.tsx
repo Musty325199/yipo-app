@@ -17,7 +17,7 @@ export function RingIcon({ size = 24, color = '#10241E', strokeWidth = 2, ...pro
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
       <Circle cx="12" cy="12" r="8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray="3 4" />
-      <Circle cx="12" cy="4" r="2.5" fill="#F0B429" stroke="#F0B429" strokeWidth={1} />
+      <Circle cx="12" cy="4" r="2.5" fill="#F59E0B" stroke="#F59E0B" strokeWidth={1} />
     </Svg>
   );
 }

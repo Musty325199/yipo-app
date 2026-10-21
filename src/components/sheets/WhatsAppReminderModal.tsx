@@ -155,7 +155,7 @@ export function WhatsAppReminderModal({
                   style={[
                     styles.toneText,
                     {
-                      color: tone === 'friendly' ? colors.ink : colors.muted,
+                      color: tone === 'friendly' ? '#0A1C16' : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
                     },
                   ]}>
@@ -179,7 +179,7 @@ export function WhatsAppReminderModal({
                   style={[
                     styles.toneText,
                     {
-                      color: tone === 'firm' ? colors.ink : colors.muted,
+                      color: tone === 'firm' ? '#0A1C16' : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
                     },
                   ]}>

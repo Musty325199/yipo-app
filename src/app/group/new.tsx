@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,6 +21,7 @@ import { createGroup } from '@/db/queries';
 import { DrawOrderModal, DraftMember } from '@/components/ring/DrawOrderModal';
 import { Frequency } from '@/db/schema';
 import { scheduleRoundNotification } from '@/utils/notifications';
+import { getAppSetting, setAppSetting } from '@/utils/security';
 
 export default function NewGroupScreen() {
   const { colors, typography, spacing, radii, isDark, formatNaira } = useTheme();
@@ -44,6 +45,39 @@ export default function NewGroupScreen() {
   const [isDrawModalOpen, setIsDrawModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Restore draft on mount
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const draft = await getAppSetting('draft_new_group');
+        if (draft && isMounted) {
+          const parsed = JSON.parse(draft);
+          if (parsed.groupName) setGroupName(parsed.groupName);
+          if (parsed.amountStr) setAmountStr(parsed.amountStr);
+          if (parsed.frequency) setFrequency(parsed.frequency);
+          if (Array.isArray(parsed.members) && parsed.members.length > 0) {
+            setMembers(parsed.members);
+          }
+          if (parsed.step) setStep(parsed.step);
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const persistDraft = (name: string, amt: string, freq: Frequency, mems: DraftMember[], s: 1 | 2 | 3) => {
+    setAppSetting('draft_new_group', JSON.stringify({
+      groupName: name,
+      amountStr: amt,
+      frequency: freq,
+      members: mems,
+      step: s,
+    })).catch(() => {});
+  };
+
   // Validation for Step 1
   const handleNextToMembers = () => {
     setFormError(null);
@@ -58,6 +92,7 @@ export default function NewGroupScreen() {
       return;
     }
     setStep(2);
+    persistDraft(trimmed, amountStr, frequency, members, 2);
   };
 
   // Add Member
@@ -99,10 +134,12 @@ export default function NewGroupScreen() {
       turn_order: members.length + 1,
     };
 
-    setMembers([...members, newMember]);
+    const updatedMembers = [...members, newMember];
+    setMembers(updatedMembers);
     setCurrentName('');
     setCurrentPhone('');
     setCurrentNote('');
+    persistDraft(groupName, amountStr, frequency, updatedMembers, 2);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -113,6 +150,7 @@ export default function NewGroupScreen() {
       turn_order: idx + 1,
     }));
     setMembers(reindexed);
+    persistDraft(groupName, amountStr, frequency, reindexed, step);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -131,6 +169,7 @@ export default function NewGroupScreen() {
       turn_order: idx + 1,
     }));
     setMembers(reordered);
+    persistDraft(groupName, amountStr, frequency, reordered, 3);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -158,6 +197,9 @@ export default function NewGroupScreen() {
           turn_order: m.turn_order,
         })),
       });
+
+      // Clear draft once saved
+      await setAppSetting('draft_new_group', '');
 
       // Schedule due date reminder for Round 1
       const collector = members.find((m) => m.turn_order === 1);
@@ -192,20 +234,53 @@ export default function NewGroupScreen() {
           showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={[styles.header, { marginVertical: spacing.lg }]}>
-            <Pressable
-              onPress={() => {
-                if (step === 1) router.back();
-                else setStep((prev) => (prev - 1) as 1 | 2 | 3);
-              }}
-              style={styles.backButton}>
-              <Text
-                style={[
-                  styles.backText,
-                  { color: colors.accent, fontFamily: typography.bodyMediumFont },
-                ]}>
-                ← Back
-              </Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Pressable
+                onPress={() => {
+                  if (step === 1) router.back();
+                  else setStep((prev) => (prev - 1) as 1 | 2 | 3);
+                }}
+                style={styles.backButton}>
+                <Text
+                  style={[
+                    styles.backText,
+                    { color: colors.accentText, fontFamily: typography.bodyMediumFont },
+                  ]}>
+                  ← Back
+                </Text>
+              </Pressable>
+
+              {(groupName || members.length > 0) && (
+                <Pressable
+                  onPress={() => {
+                    Alert.alert('Clear Draft?', 'Start over with a blank form?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Clear All',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setGroupName('');
+                          setAmountStr('');
+                          setFrequency('weekly');
+                          setMembers([]);
+                          setStep(1);
+                          await setAppSetting('draft_new_group', '');
+                        },
+                      },
+                    ]);
+                  }}
+                  style={{ padding: 4 }}>
+                  <Text
+                    style={{
+                      color: colors.unpaid,
+                      fontSize: 12,
+                      fontFamily: typography.bodyMediumFont,
+                    }}>
+                    Clear draft
+                  </Text>
+                </Pressable>
+              )}
+            </View>
 
             <Text
               style={[
@@ -681,7 +756,10 @@ export default function NewGroupScreen() {
         visible={isDrawModalOpen}
         members={members}
         onClose={() => setIsDrawModalOpen(false)}
-        onApplyOrder={(reordered) => setMembers(reordered)}
+        onApplyOrder={(reordered) => {
+          setMembers(reordered);
+          persistDraft(groupName, amountStr, frequency, reordered, 3);
+        }}
       />
     </ResponsiveContainer>
   );

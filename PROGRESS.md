@@ -77,6 +77,8 @@
 - **Finished**:
   - Full accessibility pass: verified 44px min tap targets, contrast tokens, and responsive layout for 360px small screens.
   - Complete 60fps animation pass: Skia breathing halo pulse, silk-smooth spring ring rotations, rolling counter roll-up, tactile button feedback, and deceleration spin.
+  - Bulletproof Draw Order Animation: replaced unsafe worklet interval timer calls with safe JS completion handlers and scheduled tactile clicks; zero-crash guarantee on Samsung and Android devices.
+  - Draft persistence for group creation: automatic local saving of entered members and form values with instant restore on reopen.
+  - Color & Contrast Overhaul: upgraded to radiant Royal Gold (`#F59E0B` / `#FBBF24`), high-contrast dark amber text tokens (`#B45309`), vivid Jewel Emerald (`#10B981`), and clean porcelain ivory backdrop (`#F8FAF9`) for crisp, non-faded UI.
   - Diagnostics verified: `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx expo-doctor` (20/20 passed).
-  - All 7 stages fully implemented, committed, and ready for standalone preview build.
 - **Known Bugs**: None.

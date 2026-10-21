@@ -86,7 +86,7 @@ export default function MemberProfileScreen() {
             <Text
               style={[
                 styles.backText,
-                { color: colors.accent, fontFamily: typography.bodySemiBoldFont },
+                { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
               ]}>
               ← Back
             </Text>
@@ -115,7 +115,7 @@ export default function MemberProfileScreen() {
               <Text
                 style={[
                   styles.avatarInitial,
-                  { color: colors.ink, fontFamily: typography.headingFont },
+                  { color: '#0A1C16', fontFamily: typography.headingFont },
                 ]}>
                 {member.name.charAt(0).toUpperCase()}
               </Text>
