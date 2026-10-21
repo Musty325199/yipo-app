@@ -31,13 +31,17 @@
   - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
 - **Known Bugs**: None.
 
-### [ ] Stage 3: Round Screen, Ring, Payments, Receipts
-- **In Progress**:
-  - Big Skia rotating ring with collector saffron dot & animated dot fills.
-  - Bottom sheet for member payment (mark paid, part payment, receipt photo, note).
-  - Green spring fill animation on paid dot + light haptic.
-  - Number roll-up / count-up animation for "₦X of ₦Y collected".
-  - Collector receipt confirmation ("I have received my money") with round close & smooth ring rotation to the next collector.
+### [x] Stage 3: Round Screen, Ring, Payments, Receipts
+- **Finished**:
+  - Big interactive Skia ring (`RoundRing.tsx`): rotating track, collector saffron dot with animated golden aura breathing pulse, green spring dots with checkmarks for paid members, amber dots for part-payments.
+  - Smooth spring ring rotation animation when round advances, rotating the active collector into the spotlight position.
+  - Interactive touch hit targets around circumference allowing direct dot selection + tactile haptics.
+  - High-performance 60fps rolling counter (`RollUpNumber.tsx`) with ease-out cubic deceleration.
+  - Sliding payment bottom sheet (`PaymentBottomSheet.tsx`) supporting full payment, part-payment with custom amounts, receipt image capture/attachment via `expo-image-picker`, and organizer notes.
+  - Direct WhatsApp reminder and receipt links.
+  - Atomic payment updates & round completion advances in SQLite transaction.
+  - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
+- **Known Bugs**: None.
 
 ### [ ] Stage 4: WhatsApp Reminders, Summary, Receipts, Notifications
 ### [ ] Stage 5: Swap Turns, Reliability Record, Calendar, History

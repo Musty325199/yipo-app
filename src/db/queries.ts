@@ -223,9 +223,177 @@ export async function getGroupDetails(groupId: string): Promise<{
        ORDER BY m.turn_order ASC;`,
       [currentRound.id]
     );
+
+    // If payments weren't initialized for this round yet, initialize them now
+    if (payments.length === 0 && members.length > 0) {
+      const now = getNowISO();
+      await db.withTransactionAsync(async () => {
+        for (const m of members) {
+          const paymentId = Crypto.randomUUID();
+          await db.runAsync(
+            `INSERT INTO payments (id, group_id, round_id, member_id, amount, target_amount, status, created_at)
+             VALUES (?, ?, ?, ?, 0, ?, 'unpaid', ?);`,
+            [paymentId, groupId, currentRound.id, m.id, group.contribution_amount, now]
+          );
+        }
+      });
+
+      payments = await db.getAllAsync<
+        PaymentRecord & { member_name: string; member_phone: string; turn_order: number }
+      >(
+        `SELECT p.*, m.name as member_name, m.phone as member_phone, m.turn_order
+         FROM payments p
+         JOIN members m ON p.member_id = m.id
+         WHERE p.round_id = ?
+         ORDER BY m.turn_order ASC;`,
+        [currentRound.id]
+      );
+    }
   }
 
   return { group, members, rounds, currentRound, payments };
+}
+
+/**
+ * Record or update a member's payment for the current round.
+ * Atomically updates the payment row and the round's collected_amount.
+ */
+export async function recordPayment(input: {
+  paymentId: string;
+  amount: number; // integer (naira)
+  status: 'unpaid' | 'part_paid' | 'paid';
+  receiptImageUri?: string | null;
+  note?: string | null;
+}): Promise<void> {
+  const db = await getDb();
+  const now = getNowISO();
+
+  await db.withTransactionAsync(async () => {
+    // 1. Get current payment row to find round_id
+    const currentPayment = await db.getFirstAsync<PaymentRecord>(
+      `SELECT * FROM payments WHERE id = ?;`,
+      [input.paymentId]
+    );
+    if (!currentPayment) {
+      throw new Error(`Payment with id ${input.paymentId} not found`);
+    }
+
+    const paidAt = input.status === 'unpaid' ? null : now;
+
+    // 2. Update payment row
+    await db.runAsync(
+      `UPDATE payments
+       SET amount = ?,
+           status = ?,
+           paid_at = ?,
+           receipt_image_uri = ?,
+           note = ?
+       WHERE id = ?;`,
+      [
+        input.amount,
+        input.status,
+        paidAt,
+        input.receiptImageUri ?? null,
+        input.note?.trim() ?? null,
+        input.paymentId,
+      ]
+    );
+
+    // 3. Recompute round total collected amount
+    const sumResult = await db.getFirstAsync<{ total: number | null }>(
+      `SELECT SUM(amount) as total FROM payments WHERE round_id = ?;`,
+      [currentPayment.round_id]
+    );
+    const newCollected = sumResult?.total ?? 0;
+
+    await db.runAsync(
+      `UPDATE rounds SET collected_amount = ? WHERE id = ?;`,
+      [newCollected, currentPayment.round_id]
+    );
+  });
+}
+
+/**
+ * Advance to the next round after organizer confirms collector payout.
+ * Closes the current round, marks collector_confirmed = 1, increments current_round,
+ * and initializes next round payment slots.
+ */
+export async function advanceToNextRound(groupId: string): Promise<{
+  isCompleted: boolean;
+  nextRoundNumber: number;
+}> {
+  const db = await getDb();
+  const now = getNowISO();
+
+  let outcome = { isCompleted: false, nextRoundNumber: 1 };
+
+  await db.withTransactionAsync(async () => {
+    const group = await db.getFirstAsync<GroupRecord>(
+      `SELECT * FROM groups WHERE id = ?;`,
+      [groupId]
+    );
+    if (!group) throw new Error('Group not found');
+
+    // 1. Mark current round as completed & confirmed
+    await db.runAsync(
+      `UPDATE rounds
+       SET status = 'completed',
+           collector_confirmed = 1,
+           completed_at = ?
+       WHERE group_id = ? AND round_number = ?;`,
+      [now, groupId, group.current_round]
+    );
+
+    // 2. Check if this was the final round
+    if (group.current_round >= group.total_rounds) {
+      await db.runAsync(
+        `UPDATE groups SET status = 'completed', updated_at = ? WHERE id = ?;`,
+        [now, groupId]
+      );
+      outcome = { isCompleted: true, nextRoundNumber: group.current_round };
+      return;
+    }
+
+    // 3. Otherwise, advance group to next round
+    const nextRound = group.current_round + 1;
+    await db.runAsync(
+      `UPDATE groups SET current_round = ?, updated_at = ? WHERE id = ?;`,
+      [nextRound, now, groupId]
+    );
+
+    // 4. Initialize payments for next round if not already present
+    const nextRoundRecord = await db.getFirstAsync<RoundRecord>(
+      `SELECT * FROM rounds WHERE group_id = ? AND round_number = ?;`,
+      [groupId, nextRound]
+    );
+
+    if (nextRoundRecord) {
+      const existingPayments = await db.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) as count FROM payments WHERE round_id = ?;`,
+        [nextRoundRecord.id]
+      );
+
+      if (!existingPayments || existingPayments.count === 0) {
+        const members = await db.getAllAsync<MemberRecord>(
+          `SELECT * FROM members WHERE group_id = ? ORDER BY turn_order ASC;`,
+          [groupId]
+        );
+
+        for (const m of members) {
+          const paymentId = Crypto.randomUUID();
+          await db.runAsync(
+            `INSERT INTO payments (id, group_id, round_id, member_id, amount, target_amount, status, created_at)
+             VALUES (?, ?, ?, ?, 0, ?, 'unpaid', ?);`,
+            [paymentId, groupId, nextRoundRecord.id, m.id, group.contribution_amount, now]
+          );
+        }
+      }
+    }
+
+    outcome = { isCompleted: false, nextRoundNumber: nextRound };
+  });
+
+  return outcome;
 }
 
 /**
