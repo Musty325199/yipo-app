@@ -18,12 +18,22 @@ import { AnimatedSplash } from '@/components/splash/AnimatedSplash';
 import { setupNotificationChannels } from '@/utils/notifications';
 import { LockScreen } from '@/components/security/LockScreen';
 import { isAppLockEnabled } from '@/utils/security';
+import { useShareIntent } from 'expo-share-intent';
+import { ShareReceiptModal } from '@/components/sheets/ShareReceiptModal';
 
 // Keep splash visible until fonts are loaded and ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootContent() {
   const { colors, isDark } = useTheme();
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+
+  const sharedImageFiles = React.useMemo(() => {
+    if (!hasShareIntent || !shareIntent?.files) return [];
+    return shareIntent.files.filter(
+      (f) => !f.mimeType || f.mimeType.startsWith('image/')
+    );
+  }, [hasShareIntent, shareIntent]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -36,6 +46,14 @@ function RootContent() {
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
+
+      {sharedImageFiles.length > 0 && (
+        <ShareReceiptModal
+          visible={sharedImageFiles.length > 0}
+          files={sharedImageFiles}
+          onClose={() => resetShareIntent(true)}
+        />
+      )}
     </View>
   );
 }
