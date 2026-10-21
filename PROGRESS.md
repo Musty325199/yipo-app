@@ -54,7 +54,16 @@
   - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
 - **Known Bugs**: None.
 
-### [ ] Stage 5: Swap Turns, Reliability Record, Calendar, History
-### [ ] Stage 5: Swap Turns, Reliability Record, Calendar, History
+### [x] Stage 5: Swap Turns, Reliability Record, Calendar, History
+- **Finished**:
+  - Turn Swapping bottom sheet modal (`SwapTurnsModal.tsx`): select two members, enter mandatory reason, atomic SQLite transaction swapping payout rounds and updating round collector IDs with audit logging in `swaps` table.
+  - Member Detail & Reliability Record screen (`src/app/member/[id].tsx`): on-time vs delayed metrics, private reliability percentage rating (0-100%), historical contributions timeline with receipts, turn swaps audit log, and direct WhatsApp messaging.
+  - Calendar & Schedule timeline (`src/app/(tabs)/calendar.tsx`): categorizes payouts into Action Required (Due Today/Overdue), Upcoming Rounds, and Completed Payouts formatted in Lagos timezone (`Africa/Lagos`), with tap-through to round screens.
+  - Seamless navigation between group round, member profile, and calendar.
+  - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
+- **Known Bugs**: None.
+
+### [ ] Stage 6: App Lock, Backup, CSV, Settings
+### [ ] Stage 7: Polish, Accessibility, Performance Pass, Final APK Build
 ### [ ] Stage 6: App Lock, Backup, CSV, Settings
 ### [ ] Stage 7: Polish, Accessibility, Performance Pass, Final APK Build

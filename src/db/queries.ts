@@ -403,3 +403,274 @@ export async function deleteGroup(groupId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM groups WHERE id = ?;`, [groupId]);
 }
+
+/**
+ * Atomically swap turn order between two members in an Ajo group and log reason.
+ */
+export async function swapMemberTurns(
+  groupId: string,
+  memberAId: string,
+  memberBId: string,
+  reason: string
+): Promise<void> {
+  const db = await getDb();
+  const now = getNowISO();
+  const swapId = Crypto.randomUUID();
+
+  await db.withTransactionAsync(async () => {
+    const memberA = await db.getFirstAsync<MemberRecord>(
+      `SELECT * FROM members WHERE id = ?;`,
+      [memberAId]
+    );
+    const memberB = await db.getFirstAsync<MemberRecord>(
+      `SELECT * FROM members WHERE id = ?;`,
+      [memberBId]
+    );
+
+    if (!memberA || !memberB) {
+      throw new Error('Both members must exist in the group');
+    }
+
+    const roundA = memberA.payout_round;
+    const roundB = memberB.payout_round;
+
+    // 1. Swap turn order and payout rounds on members
+    await db.runAsync(
+      `UPDATE members SET turn_order = ?, payout_round = ? WHERE id = ?;`,
+      [roundB, roundB, memberAId]
+    );
+
+    await db.runAsync(
+      `UPDATE members SET turn_order = ?, payout_round = ? WHERE id = ?;`,
+      [roundA, roundA, memberBId]
+    );
+
+    // 2. Update collector on respective rounds
+    await db.runAsync(
+      `UPDATE rounds SET collector_member_id = ? WHERE group_id = ? AND round_number = ?;`,
+      [memberBId, groupId, roundA]
+    );
+
+    await db.runAsync(
+      `UPDATE rounds SET collector_member_id = ? WHERE group_id = ? AND round_number = ?;`,
+      [memberAId, groupId, roundB]
+    );
+
+    // 3. Log swap audit record
+    await db.runAsync(
+      `INSERT INTO swaps (id, group_id, member_a_id, member_b_id, round_a, round_b, reason, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [swapId, groupId, memberAId, memberBId, roundA, roundB, reason.trim(), now]
+    );
+  });
+}
+
+export interface MemberProfileData {
+  member: MemberRecord;
+  groupName: string;
+  totalContributions: number;
+  totalTarget: number;
+  onTimeCount: number;
+  lateCount: number;
+  unpaidCount: number;
+  reliabilityScore: number; // 0 to 100
+  paymentsHistory: {
+    id: string;
+    roundNumber: number;
+    amount: number;
+    targetAmount: number;
+    status: 'unpaid' | 'part_paid' | 'paid';
+    paidAt: string | null;
+    dueDate: string;
+    receiptUri: string | null;
+    note: string | null;
+  }[];
+  swaps: {
+    id: string;
+    roundA: number;
+    roundB: number;
+    reason: string;
+    createdAt: string;
+    partnerName: string;
+  }[];
+}
+
+/**
+ * Fetch detailed member payment reliability record and history.
+ */
+export async function getMemberReliabilityProfile(
+  memberId: string
+): Promise<MemberProfileData | null> {
+  const db = await getDb();
+
+  const member = await db.getFirstAsync<MemberRecord>(
+    `SELECT * FROM members WHERE id = ?;`,
+    [memberId]
+  );
+  if (!member) return null;
+
+  const group = await db.getFirstAsync<GroupRecord>(
+    `SELECT name FROM groups WHERE id = ?;`,
+    [member.group_id]
+  );
+
+  const rawPayments = await db.getAllAsync<{
+    id: string;
+    amount: number;
+    target_amount: number;
+    status: 'unpaid' | 'part_paid' | 'paid';
+    paid_at: string | null;
+    round_number: number;
+    due_date: string;
+    receipt_image_uri: string | null;
+    note: string | null;
+  }>(
+    `SELECT p.id, p.amount, p.target_amount, p.status, p.paid_at, r.round_number, r.due_date, p.receipt_image_uri, p.note
+     FROM payments p
+     JOIN rounds r ON p.round_id = r.id
+     WHERE p.member_id = ?
+     ORDER BY r.round_number ASC;`,
+    [memberId]
+  );
+
+  let onTimeCount = 0;
+  let lateCount = 0;
+  let unpaidCount = 0;
+  let totalContributions = 0;
+  let totalTarget = 0;
+
+  for (const pay of rawPayments) {
+    totalContributions += pay.amount;
+    totalTarget += pay.target_amount;
+
+    if (pay.status === 'paid') {
+      if (pay.paid_at && pay.due_date && pay.paid_at > pay.due_date) {
+        lateCount++;
+      } else {
+        onTimeCount++;
+      }
+    } else {
+      unpaidCount++;
+    }
+  }
+
+  const evaluatedRounds = onTimeCount + lateCount + unpaidCount;
+  let reliabilityScore = 100;
+  if (evaluatedRounds > 0) {
+    // 100 for on-time, 70 for late, 0 for unpaid
+    const points = onTimeCount * 100 + lateCount * 70;
+    reliabilityScore = Math.max(0, Math.min(100, Math.round(points / evaluatedRounds)));
+  }
+
+  // Fetch swaps
+  const rawSwaps = await db.getAllAsync<{
+    id: string;
+    round_a: number;
+    round_b: number;
+    reason: string;
+    created_at: string;
+    member_a_id: string;
+    member_b_id: string;
+  }>(
+    `SELECT * FROM swaps WHERE member_a_id = ? OR member_b_id = ? ORDER BY created_at DESC;`,
+    [memberId, memberId]
+  );
+
+  const swaps: MemberProfileData['swaps'] = [];
+  for (const s of rawSwaps) {
+    const otherId = s.member_a_id === memberId ? s.member_b_id : s.member_a_id;
+    const partner = await db.getFirstAsync<MemberRecord>(
+      `SELECT name FROM members WHERE id = ?;`,
+      [otherId]
+    );
+    swaps.push({
+      id: s.id,
+      roundA: s.round_a,
+      roundB: s.round_b,
+      reason: s.reason,
+      createdAt: s.created_at,
+      partnerName: partner?.name || 'Fellow Member',
+    });
+  }
+
+  return {
+    member,
+    groupName: group?.name || 'Ajo Group',
+    totalContributions,
+    totalTarget,
+    onTimeCount,
+    lateCount,
+    unpaidCount,
+    reliabilityScore,
+    paymentsHistory: rawPayments.map((p) => ({
+      id: p.id,
+      roundNumber: p.round_number,
+      amount: p.amount,
+      targetAmount: p.target_amount,
+      status: p.status,
+      paidAt: p.paid_at,
+      dueDate: p.due_date,
+      receiptUri: p.receipt_image_uri,
+      note: p.note,
+    })),
+    swaps,
+  };
+}
+
+export interface CalendarRoundItem {
+  roundId: string;
+  groupId: string;
+  groupName: string;
+  frequency: Frequency;
+  roundNumber: number;
+  totalRounds: number;
+  collectorName: string;
+  targetAmount: number;
+  collectedAmount: number;
+  dueDate: string;
+  status: 'open' | 'completed';
+}
+
+/**
+ * Fetch calendar timeline across all active groups ordered by due date.
+ */
+export async function getCalendarSchedule(): Promise<CalendarRoundItem[]> {
+  const db = await getDb();
+
+  const items = await db.getAllAsync<{
+    round_id: string;
+    group_id: string;
+    group_name: string;
+    frequency: Frequency;
+    round_number: number;
+    total_rounds: number;
+    collector_name: string;
+    target_amount: number;
+    collected_amount: number;
+    due_date: string;
+    status: 'open' | 'completed';
+  }>(
+    `SELECT r.id as round_id, g.id as group_id, g.name as group_name, g.frequency,
+            r.round_number, g.total_rounds, m.name as collector_name,
+            r.target_amount, r.collected_amount, r.due_date, r.status
+     FROM rounds r
+     JOIN groups g ON r.group_id = g.id
+     JOIN members m ON r.collector_member_id = m.id
+     WHERE g.status = 'active'
+     ORDER BY r.due_date ASC;`
+  );
+
+  return items.map((item) => ({
+    roundId: item.round_id,
+    groupId: item.group_id,
+    groupName: item.group_name,
+    frequency: item.frequency,
+    roundNumber: item.round_number,
+    totalRounds: item.total_rounds,
+    collectorName: item.collector_name,
+    targetAmount: item.target_amount,
+    collectedAmount: item.collected_amount,
+    dueDate: item.due_date,
+    status: item.status,
+  }));
+}

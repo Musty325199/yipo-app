@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Animated, {
@@ -261,6 +262,21 @@ function PaymentSheetContent({
                   ]}>
                   Turn #{member.turn_order} • {member.formatted_phone}
                 </Text>
+                <Pressable
+                  onPress={() => {
+                    onClose();
+                    router.push(`/member/${member.id}`);
+                  }}
+                  style={{ marginTop: 4 }}>
+                  <Text
+                    style={{
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontFamily: typography.bodySemiBoldFont,
+                    }}>
+                    View Reliability History →
+                  </Text>
+                </Pressable>
               </View>
 
               {/* Status Badge */}

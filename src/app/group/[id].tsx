@@ -23,6 +23,7 @@ import { GroupRecord, MemberRecord, RoundRecord, PaymentRecord } from '@/db/sche
 import { RoundRing } from '@/components/ring/RoundRing';
 import { PaymentBottomSheet } from '@/components/sheets/PaymentBottomSheet';
 import { WhatsAppReminderModal } from '@/components/sheets/WhatsAppReminderModal';
+import { SwapTurnsModal } from '@/components/sheets/SwapTurnsModal';
 import {
   buildReceiptMessage,
   buildGroupSummaryMessage,
@@ -59,6 +60,9 @@ export default function GroupRoundScreen() {
     member: MemberRecord;
     amountDue: string;
   } | null>(null);
+
+  // Turn Swapping Modal
+  const [showSwapModal, setShowSwapModal] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -284,20 +288,51 @@ export default function GroupRoundScreen() {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={handleDeleteGroup}
-            style={({ pressed }) => [
-              styles.deleteBtn,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}>
-            <Text
-              style={[
-                styles.deleteText,
-                { color: colors.unpaid, fontFamily: typography.bodyMediumFont },
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {!isGroupCompleted && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowSwapModal(true);
+                }}
+                style={({ pressed }) => [
+                  styles.swapNavBtn,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.line,
+                    borderRadius: radii.pill,
+                    borderWidth: 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 5,
+                    marginRight: 8,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}>
+                <Text
+                  style={[
+                    styles.swapNavText,
+                    { color: colors.accent, fontFamily: typography.bodySemiBoldFont },
+                  ]}>
+                  ⇄ Swap Turns
+                </Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              onPress={handleDeleteGroup}
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                { opacity: pressed ? 0.6 : 1 },
               ]}>
-              Delete Group
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.deleteText,
+                  { color: colors.unpaid, fontFamily: typography.bodyMediumFont },
+                ]}>
+                Delete
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Group Title Header */}
@@ -709,6 +744,18 @@ export default function GroupRoundScreen() {
           onClose={() => setReminderModalMember(null)}
         />
       )}
+
+      {/* Turn Swapping Modal */}
+      <SwapTurnsModal
+        visible={showSwapModal}
+        groupId={group.id}
+        members={members}
+        currentRound={group.current_round}
+        onClose={() => setShowSwapModal(false)}
+        onSwapSuccess={async () => {
+          await loadData();
+        }}
+      />
     </ResponsiveContainer>
   );
 }
@@ -733,6 +780,13 @@ const styles = StyleSheet.create({
   },
   navBackText: {
     fontSize: 16,
+  },
+  swapNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  swapNavText: {
+    fontSize: 13,
   },
   deleteBtn: {
     paddingVertical: 6,
