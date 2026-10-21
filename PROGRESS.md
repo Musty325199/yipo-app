@@ -63,7 +63,16 @@
   - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
 - **Known Bugs**: None.
 
-### [ ] Stage 6: App Lock, Backup, CSV, Settings
+### [x] Stage 6: App Lock, Backup, CSV, Settings
+- **Finished**:
+  - Biometric App Lock (`src/utils/security.ts`, `src/components/security/LockScreen.tsx`): Face ID / Fingerprint authentication via `expo-local-authentication`, with fallback to custom passcode / PIN.
+  - SQLite persistent settings store (`app_settings` table migration 2).
+  - Complete offline JSON database export & restore (`src/utils/backup.ts`) via `expo-file-system/legacy` and `expo-sharing` / `expo-document-picker`.
+  - Excel/CSV spreadsheet generation and export (`src/utils/csv.ts`).
+  - Polished Settings Screen (`src/app/(tabs)/settings.tsx`): Light/Dark/System theme switcher, app lock toggle, data backups, and offline disclaimer.
+  - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
+- **Known Bugs**: None.
+
 ### [ ] Stage 7: Polish, Accessibility, Performance Pass, Final APK Build
-### [ ] Stage 6: App Lock, Backup, CSV, Settings
+
 ### [ ] Stage 7: Polish, Accessibility, Performance Pass, Final APK Build

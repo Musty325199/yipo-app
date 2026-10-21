@@ -151,4 +151,14 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_payments_round_member ON payments(round_id, member_id);
     `,
   },
+  {
+    version: 2,
+    name: 'app_settings',
+    up: `
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      );
+    `,
+  },
 ];

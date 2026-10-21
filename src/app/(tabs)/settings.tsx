@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   Pressable,
+  Switch,
+  Alert,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
 import { ResponsiveContainer } from '@/components/layout/ResponsiveContainer';
+import { Button } from '@/components/ui/button';
 import { LockIcon, InfoIcon } from '@/components/ui/icons';
+import {
+  isAppLockEnabled,
+  setAppLockEnabled,
+  hasBiometricHardware,
+  authenticateWithBiometrics,
+} from '@/utils/security';
+import { exportJsonBackup, restoreJsonBackup } from '@/utils/backup';
+import { exportAllRecordsToCSV } from '@/utils/csv';
 
 export default function SettingsScreen() {
   const {
@@ -20,6 +32,101 @@ export default function SettingsScreen() {
     themePreference,
     setThemePreference,
   } = useTheme();
+
+  const [lockEnabled, setLockEnabled] = useState(false);
+  const [hasBiometrics, setHasBiometrics] = useState(false);
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const enabled = await isAppLockEnabled();
+      setLockEnabled(enabled);
+
+      const bio = await hasBiometricHardware();
+      setHasBiometrics(bio);
+    })();
+  }, []);
+
+  const handleToggleLock = async (value: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (value) {
+      // Test biometric authentication before enabling
+      const success = await authenticateWithBiometrics('Confirm Biometric / PIN to enable App Lock');
+      if (success) {
+        await setAppLockEnabled(true);
+        setLockEnabled(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert('Authentication Required', 'Could not enable app lock without authentication.');
+      }
+    } else {
+      await setAppLockEnabled(false);
+      setLockEnabled(false);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    setExportingBackup(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const res = await exportJsonBackup();
+      if (res.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert('Export Failed', res.error || 'Unable to export backup.');
+      }
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    Alert.alert(
+      'Restore Database Backup?',
+      'Restoring from a backup will replace your current records with the data in the backup file. Are you sure you want to proceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Choose File & Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setRestoringBackup(true);
+            try {
+              const res = await restoreJsonBackup();
+              if (res.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert(
+                  'Restore Successful! 🎉',
+                  `Successfully restored ${res.restoredGroupsCount} Ajo group(s).`
+                );
+              } else if (res.error !== 'File selection canceled') {
+                Alert.alert('Restore Failed', res.error || 'Unable to restore backup.');
+              }
+            } finally {
+              setRestoringBackup(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleExportCSV = async () => {
+    setExportingCsv(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const res = await exportAllRecordsToCSV();
+      if (res.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert('Export Failed', res.error || 'Unable to generate CSV.');
+      }
+    } finally {
+      setExportingCsv(false);
+    }
+  };
 
   interface ThemeOption {
     key: 'system' | 'light' | 'dark';
@@ -37,7 +144,7 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingHorizontal: spacing.base, paddingBottom: spacing.xl },
+          { paddingHorizontal: spacing.base, paddingBottom: spacing.xl * 2 },
         ]}
         showsVerticalScrollIndicator={false}>
         {/* Header */}
@@ -49,6 +156,13 @@ export default function SettingsScreen() {
             ]}>
             Settings
           </Text>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.muted, fontFamily: typography.bodyFont },
+            ]}>
+            Preferences, security, and offline data backups
+          </Text>
         </View>
 
         {/* Appearance Section */}
@@ -58,7 +172,7 @@ export default function SettingsScreen() {
               styles.sectionHeader,
               { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.sm },
             ]}>
-            Appearance
+            APPEARANCE
           </Text>
 
           <View
@@ -86,17 +200,15 @@ export default function SettingsScreen() {
                 return (
                   <Pressable
                     key={opt.key}
-                    onPress={() => setThemePreference(opt.key)}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setThemePreference(opt.key);
+                    }}
                     style={[
                       styles.pillButton,
                       {
                         backgroundColor: isActive ? colors.surface : 'transparent',
                         borderRadius: radii.pill,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: isActive ? 0.08 : 0,
-                        shadowRadius: 2,
-                        elevation: isActive ? 1 : 0,
                       },
                     ]}>
                     <Text
@@ -118,14 +230,14 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Security Section (Placeholder for Stage 6) */}
+        {/* Security Section */}
         <View style={{ marginBottom: spacing.lg }}>
           <Text
             style={[
               styles.sectionHeader,
               { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.sm },
             ]}>
-            Security
+            SECURITY & PRIVACY
           </Text>
 
           <View
@@ -141,7 +253,7 @@ export default function SettingsScreen() {
             ]}>
             <View style={styles.rowItem}>
               <View style={[styles.iconBox, { backgroundColor: colors.bg, borderRadius: 10 }]}>
-                <LockIcon size={20} color={colors.ink} strokeWidth={1.8} />
+                <LockIcon size={20} color={colors.accent} strokeWidth={2} />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text
@@ -149,28 +261,103 @@ export default function SettingsScreen() {
                     styles.itemTitle,
                     { color: colors.ink, fontFamily: typography.bodySemiBoldFont },
                   ]}>
-                  App lock
+                  App Lock
                 </Text>
                 <Text
                   style={[
                     styles.itemSubtitle,
                     { color: colors.muted, fontFamily: typography.bodyFont },
                   ]}>
-                  Require biometric or PIN to open Yípo
+                  {hasBiometrics
+                    ? 'Require Fingerprint / Face ID to open Yípo'
+                    : 'Require Passcode or PIN to open Yípo'}
                 </Text>
               </View>
+              <Switch
+                value={lockEnabled}
+                onValueChange={handleToggleLock}
+                trackColor={{ false: colors.bg, true: colors.accent }}
+              />
             </View>
           </View>
         </View>
 
-        {/* About Section */}
+        {/* Data & Backups Section */}
         <View style={{ marginBottom: spacing.lg }}>
           <Text
             style={[
               styles.sectionHeader,
               { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.sm },
             ]}>
-            About Yípo
+            OFFLINE DATA & BACKUPS
+          </Text>
+
+          <View
+            style={[
+              styles.settingCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: radii.card,
+                borderColor: colors.line,
+                borderWidth: isDark ? 1 : 0,
+                padding: spacing.base,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.itemTitle,
+                { color: colors.ink, fontFamily: typography.headingSemiBoldFont },
+              ]}>
+              Database Backup & Restore
+            </Text>
+            <Text
+              style={[
+                styles.itemSubtitle,
+                { color: colors.muted, fontFamily: typography.bodyFont, marginTop: 2, marginBottom: spacing.base },
+              ]}>
+              Export your entire offline ledger to JSON for safekeeping on Google Drive, WhatsApp, or local storage.
+            </Text>
+
+            <View style={{ marginBottom: spacing.sm }}>
+              <Button
+                label="Export JSON Backup File"
+                variant="primary"
+                disabled={exportingBackup}
+                onPress={handleExportBackup}
+                style={{ width: '100%' }}
+              />
+            </View>
+
+            <View style={{ marginBottom: spacing.sm }}>
+              <Button
+                label="Restore from JSON Backup"
+                variant="secondary"
+                disabled={restoringBackup}
+                onPress={handleRestoreBackup}
+                style={{ width: '100%' }}
+              />
+            </View>
+
+            <View style={{ marginTop: spacing.xs }}>
+              <Button
+                label="Export Records to Excel (CSV)"
+                variant="secondary"
+                disabled={exportingCsv}
+                onPress={handleExportCSV}
+                style={{ width: '100%' }}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* About Section */}
+        <View style={{ marginBottom: spacing.xl }}>
+          <Text
+            style={[
+              styles.sectionHeader,
+              { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.sm },
+            ]}>
+            ABOUT YÍPO
           </Text>
 
           <View
@@ -186,17 +373,18 @@ export default function SettingsScreen() {
             ]}>
             <View style={styles.disclaimerRow}>
               <InfoIcon size={22} color={colors.accent} strokeWidth={2} />
-                <Text
-                  style={[
-                    styles.disclaimerText,
-                    {
-                      color: colors.ink,
-                      fontFamily: typography.bodyMediumFont,
-                      marginLeft: spacing.sm,
-                    },
-                  ]}>
-                  {"Yípo keeps records only. It does not hold or move anyone's money."}
-                </Text>
+              <Text
+                style={[
+                  styles.disclaimerText,
+                  {
+                    color: colors.ink,
+                    fontFamily: typography.bodyMediumFont,
+                    marginLeft: spacing.sm,
+                    flex: 1,
+                  },
+                ]}>
+                {"Yípo is an offline record book only. It never holds, collects, or transfers anyone's money."}
+              </Text>
             </View>
 
             <View
@@ -206,20 +394,37 @@ export default function SettingsScreen() {
               ]}
             />
 
-            <View style={styles.versionRow}>
+            <View style={styles.metaRow}>
               <Text
                 style={[
-                  styles.versionLabel,
+                  styles.metaLabel,
                   { color: colors.muted, fontFamily: typography.bodyFont },
                 ]}>
                 Version
               </Text>
               <Text
                 style={[
-                  styles.versionValue,
-                  { color: colors.ink, fontFamily: typography.bodyMediumFont },
+                  styles.metaValue,
+                  { color: colors.ink, fontFamily: typography.bodySemiBoldFont },
                 ]}>
-                1.0.0 (Build 1)
+                1.0.0 (Offline Edition)
+              </Text>
+            </View>
+
+            <View style={[styles.metaRow, { marginTop: spacing.xs }]}>
+              <Text
+                style={[
+                  styles.metaLabel,
+                  { color: colors.muted, fontFamily: typography.bodyFont },
+                ]}>
+                Timezone
+              </Text>
+              <Text
+                style={[
+                  styles.metaValue,
+                  { color: colors.ink, fontFamily: typography.bodySemiBoldFont },
+                ]}>
+                Africa/Lagos (GMT+1)
               </Text>
             </View>
           </View>
@@ -237,29 +442,38 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   screenTitle: {
-    fontSize: 28,
-    letterSpacing: -0.5,
+    fontSize: 26,
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
   },
   sectionHeader: {
-    fontSize: 13,
-    textTransform: 'uppercase',
+    fontSize: 12,
     letterSpacing: 0.8,
   },
-  settingCard: {},
+  settingCard: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
   settingLabel: {
-    fontSize: 15,
+    fontSize: 14,
   },
   pillContainer: {
     flexDirection: 'row',
   },
   pillButton: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pillText: {
-    fontSize: 14,
+    fontSize: 13,
   },
   rowItem: {
     flexDirection: 'row',
@@ -272,34 +486,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemTitle: {
-    fontSize: 16,
+    fontSize: 15,
   },
   itemSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 1,
   },
   disclaimerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   disclaimerText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   divider: {
     height: 1,
     width: '100%',
   },
-  versionRow: {
+  metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  versionLabel: {
-    fontSize: 14,
+  metaLabel: {
+    fontSize: 13,
   },
-  versionValue: {
-    fontSize: 14,
+  metaValue: {
+    fontSize: 13,
   },
 });

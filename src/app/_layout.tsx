@@ -16,6 +16,8 @@ import {
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { AnimatedSplash } from '@/components/splash/AnimatedSplash';
 import { setupNotificationChannels } from '@/utils/notifications';
+import { LockScreen } from '@/components/security/LockScreen';
+import { isAppLockEnabled } from '@/utils/security';
 
 // Keep splash visible until fonts are loaded and ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -40,9 +42,16 @@ function RootContent() {
 
 export default function RootLayout() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
     setupNotificationChannels().catch(() => {});
+    (async () => {
+      const lockEnabled = await isAppLockEnabled();
+      if (lockEnabled) {
+        setIsLocked(true);
+      }
+    })();
   }, []);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -60,6 +69,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <RootContent />
+      {isLocked && splashAnimationDone && (
+        <LockScreen visible={isLocked} onUnlocked={() => setIsLocked(false)} />
+      )}
       {!splashAnimationDone && (
         <AnimatedSplash
           onAnimationComplete={() => {
