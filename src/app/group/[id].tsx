@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   Pressable,
   Alert,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -18,7 +19,9 @@ import {
   recordPayment,
   advanceToNextRound,
   deleteGroup,
+  updateMemberPhone,
 } from '@/db/queries';
+import { normalizeNigerianPhone, formatPhoneForDisplay } from '@/utils/phone';
 import { GroupRecord, MemberRecord, RoundRecord, PaymentRecord } from '@/db/schema';
 import { RoundRing } from '@/components/ring/RoundRing';
 import { PaymentBottomSheet } from '@/components/sheets/PaymentBottomSheet';
@@ -65,6 +68,24 @@ export default function GroupRoundScreen() {
 
   // Turn Swapping Modal
   const [showSwapModal, setShowSwapModal] = useState(false);
+
+  // One-tap Payment & Undo Toast
+  const markingPaidRef = useRef<Set<string>>(new Set());
+  const [undoToast, setUndoToast] = useState<{
+    paymentId: string;
+    prevAmount: number;
+    prevStatus: 'unpaid' | 'part_paid' | 'paid';
+    memberName: string;
+  } | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Missing phone number prompt for WhatsApp
+  const [phonePromptMember, setPhonePromptMember] = useState<{
+    member: MemberRecord;
+    payment: PaymentRecord;
+  } | null>(null);
+  const [promptPhoneInput, setPromptPhoneInput] = useState('');
+  const [promptPhoneError, setPromptPhoneError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -175,8 +196,107 @@ export default function GroupRoundScreen() {
     );
   };
 
+  const handleQuickOneTapPaid = async (
+    payment: PaymentRecord,
+    member: MemberRecord
+  ) => {
+    if (markingPaidRef.current.has(payment.id)) return;
+    markingPaidRef.current.add(payment.id);
+
+    try {
+      if (payment.status === 'paid') {
+        handleSelectMember(member);
+        return;
+      }
+
+      const prevAmount = payment.amount;
+      const prevStatus = payment.status;
+
+      await recordPayment({
+        paymentId: payment.id,
+        amount: payment.target_amount,
+        status: 'paid',
+        receiptImageUri: payment.receipt_image_uri,
+        note: payment.note,
+        lateFeeAmount: payment.late_fee_amount,
+        lateFeeWaived: Boolean(payment.late_fee_waived),
+        lateFeeWaivedReason: payment.late_fee_waived_reason,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await loadData();
+
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      setUndoToast({
+        paymentId: payment.id,
+        prevAmount,
+        prevStatus,
+        memberName: member.name,
+      });
+
+      undoTimeoutRef.current = setTimeout(() => {
+        setUndoToast(null);
+      }, 4000);
+    } catch {
+      Alert.alert('Error', 'Failed to update payment status.');
+    } finally {
+      setTimeout(() => {
+        markingPaidRef.current.delete(payment.id);
+      }, 400);
+    }
+  };
+
+  const handleUndoPayment = async () => {
+    if (!undoToast) return;
+    const { paymentId, prevAmount, prevStatus } = undoToast;
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    setUndoToast(null);
+
+    try {
+      await recordPayment({
+        paymentId,
+        amount: prevAmount,
+        status: prevStatus,
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await loadData();
+    } catch {
+      Alert.alert('Error', 'Failed to undo payment.');
+    }
+  };
+
+  const handleSavePhoneAndOpenWhatsApp = async () => {
+    if (!phonePromptMember) return;
+    const normalized = normalizeNigerianPhone(promptPhoneInput.trim());
+    if (!normalized) {
+      setPromptPhoneError('Enter a valid Nigerian phone number (e.g. 0803 123 4567).');
+      return;
+    }
+
+    const formatted = formatPhoneForDisplay(normalized);
+    await updateMemberPhone(phonePromptMember.member.id, normalized, formatted);
+    const updatedMember: MemberRecord = {
+      ...phonePromptMember.member,
+      phone: normalized,
+      formatted_phone: formatted,
+    };
+    const payment = phonePromptMember.payment;
+    setPhonePromptMember(null);
+    await loadData();
+    await handleOpenWhatsApp(updatedMember, payment);
+  };
+
   const handleOpenWhatsApp = async (member: MemberRecord, payment: PaymentRecord) => {
     if (!data) return;
+    if (!member.phone || member.phone.trim() === '' || member.formatted_phone === 'No phone number') {
+      setPromptPhoneInput('');
+      setPromptPhoneError(null);
+      setPhonePromptMember({ member, payment });
+      return;
+    }
+
     const isPaid = payment.status === 'paid';
     const amountDue = payment.target_amount - payment.amount;
 
@@ -648,6 +768,12 @@ export default function GroupRoundScreen() {
             return (
               <Pressable
                 key={p.id}
+                onLongPress={() => {
+                  if (memberObj) {
+                    Haptics.selectionAsync();
+                    handleSelectMember(memberObj);
+                  }
+                }}
                 onPress={() => {
                   if (memberObj) {
                     Haptics.selectionAsync();
@@ -666,8 +792,15 @@ export default function GroupRoundScreen() {
                     transform: [{ scale: pressed ? 0.98 : 1 }],
                   },
                 ]}>
-                {/* Turn order indicator */}
-                <View
+                {/* One-tap Paid Turn circle */}
+                <Pressable
+                  hitSlop={10}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (memberObj) {
+                      handleQuickOneTapPaid(p, memberObj);
+                    }
+                  }}
                   style={[
                     styles.memberDot,
                     {
@@ -679,6 +812,8 @@ export default function GroupRoundScreen() {
                         ? '#E07A5F'
                         : colors.bg,
                       borderRadius: radii.pill,
+                      borderWidth: isPaid || isCollector || isPartPaid ? 0 : 1,
+                      borderColor: colors.line,
                     },
                   ]}>
                   <Text
@@ -686,9 +821,9 @@ export default function GroupRoundScreen() {
                       styles.turnText,
                       { color: isPaid || isCollector || isPartPaid ? '#FFFFFF' : colors.ink },
                     ]}>
-                    #{p.turn_order}
+                    {isPaid ? '✓' : `#${p.turn_order}`}
                   </Text>
-                </View>
+                </Pressable>
 
                 {/* Member Info */}
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -886,11 +1021,156 @@ export default function GroupRoundScreen() {
           await loadData();
         }}
       />
+
+      {/* Missing Phone Number Prompt Modal */}
+      {phonePromptMember && (
+        <Modal visible={Boolean(phonePromptMember)} transparent animationType="fade">
+          <Pressable style={styles.modalBackdrop} onPress={() => setPhonePromptMember(null)}>
+            <Pressable
+              style={[
+                styles.promptModalCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.line,
+                  borderRadius: radii.card,
+                  borderWidth: isDark ? 1 : 0,
+                  padding: spacing.lg,
+                },
+              ]}
+              onPress={(e) => e.stopPropagation()}>
+              <Text style={[styles.modalTitle, { color: colors.ink, fontFamily: typography.headingFont }]}>
+                Phone number needed
+              </Text>
+              <Text
+                style={{
+                  color: colors.muted,
+                  fontFamily: typography.bodyFont,
+                  fontSize: 14,
+                  lineHeight: 20,
+                  marginVertical: spacing.sm,
+                }}>
+                Add a phone number for {phonePromptMember.member.name} to send WhatsApp reminders or receipts.
+              </Text>
+
+              <TextInput
+                placeholder="e.g. 0803 123 4567"
+                placeholderTextColor={colors.muted}
+                keyboardType="phone-pad"
+                value={promptPhoneInput}
+                onChangeText={(val) => {
+                  setPromptPhoneInput(val);
+                  setPromptPhoneError(null);
+                }}
+                style={[
+                  styles.promptInput,
+                  {
+                    backgroundColor: colors.bg,
+                    borderColor: promptPhoneError ? colors.unpaid : colors.line,
+                    color: colors.ink,
+                    borderRadius: radii.sm,
+                    fontFamily: typography.bodyFont,
+                    padding: spacing.md,
+                    marginBottom: promptPhoneError ? spacing.xs : spacing.md,
+                  },
+                ]}
+              />
+
+              {promptPhoneError && (
+                <Text style={{ color: colors.unpaid, fontFamily: typography.bodyFont, fontSize: 12, marginBottom: spacing.sm }}>
+                  {promptPhoneError}
+                </Text>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                <Button
+                  label="Cancel"
+                  variant="ghost"
+                  onPress={() => setPhonePromptMember(null)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  label="Save and open WhatsApp"
+                  variant="primary"
+                  onPress={handleSavePhoneAndOpenWhatsApp}
+                  style={{ flex: 2 }}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
+
+      {/* Floating Undo Toast for 1-Tap Paid */}
+      {undoToast && (
+        <View
+          style={[
+            styles.undoToastCard,
+            {
+              backgroundColor: isDark ? '#1F2937' : '#111827',
+              borderRadius: radii.card,
+              borderColor: colors.line,
+            },
+          ]}>
+          <Text
+            numberOfLines={1}
+            style={{
+              color: '#FFFFFF',
+              fontFamily: typography.bodyMediumFont,
+              fontSize: 14,
+              flex: 1,
+              marginRight: spacing.sm,
+            }}>
+            {undoToast.memberName} marked paid
+          </Text>
+          <Pressable
+            onPress={handleUndoPayment}
+            style={[styles.undoButton, { backgroundColor: colors.accent, borderRadius: radii.pill }]}>
+            <Text
+              style={{
+                color: colors.onAccent,
+                fontFamily: typography.headingSemiBoldFont,
+                fontSize: 13,
+                fontWeight: '700',
+              }}>
+              Undo
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </ResponsiveContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  promptModalCard: {
+    width: '90%',
+    maxWidth: 400,
+  },
+  promptInput: {
+    borderWidth: 1,
+    fontSize: 15,
+  },
+  undoToastCard: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 999,
+  },
+  undoButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
   centerBox: {
     flex: 1,
     alignItems: 'center',

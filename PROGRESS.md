@@ -1,7 +1,7 @@
 # Yípo Progress Tracker
 
 ## Status Overview
-- **Current Stage**: Stage 8: Plus features (Complete & Verified)
+- **Current Stage**: Stage 9: Fast setup & Stage 10: Share to Yípo (Complete & Verified)
 - **Command to Run App**:
   - Preview APK Build: `npx eas-cli build --profile preview --platform android`
   - Dev Client: `npx expo start --dev-client`
@@ -102,4 +102,51 @@
     - Testable Late Fee & Waiver UI: Late fee policy card is always visible in `PaymentBottomSheet.tsx` when a group has a late fee rule, allowing immediate testing of Apply Fee, Waive Fee (with reason), and Restore Fee.
     - Contrast Overhaul: Added `colors.onAccent` for ultra-high contrast dark text on yellow accent elements (Friendly tone chips, frequency pills, turn number badges, primary buttons) across light and dark modes.
   - Diagnostics verified: `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors, 0 warnings), `npx expo-doctor` (20/20 passed).
+- **Known Bugs**: None.
+
+### [x] Stage 9: Fast Group Setup
+- **Finished**:
+  - "Paste a list" modal (`src/components/group/PasteListModal.tsx`):
+    - Real-time line-by-line parsing: ignores bullets (`•`, `-`, `*`), numbering (`1.`, `1)`), extracts optional phone numbers after comma or trailing pattern.
+    - Editable preview table with name, phone, and delete actions.
+    - Strict plurals: "Add 1 member" / "Add 5 members", "Understood 1 member" / "Understood 5 members". Empty notice: "No names found yet. Paste at least one name."
+  - "Pick from contacts" modal (`src/components/group/PickContactsModal.tsx`):
+    - Plain permission request: "Yípo reads your contacts only so you can pick members. They stay on your phone."
+    - Denied alert with "Open settings" and "OK". Search input: "Search contacts…".
+    - Multi-select checkboxes and plural button: "Add 1 selected" / "Add 5 selected".
+  - Group creation flow (`src/app/group/new.tsx`):
+    - Start date: defaults to today and editable ("Starts today" with tap to change, powered by `src/components/group/StartDateModal.tsx`).
+    - Side-by-side action buttons: "Paste a list", "Pick contacts", "Add one".
+    - Phone numbers are completely optional; members without a phone number can still be added and marked paid.
+    - Late fee rule collapsed by default under "Optional rules (late fees)" to streamline the 10-member group creation benchmark.
+  - One-tap paid & undo (`src/app/group/[id].tsx`):
+    - Tapping the status circle marks the member paid for full amount due immediately with success haptic.
+    - Accidental double-tap blocked via `markingPaidRef`.
+    - Floating 4-second undo toast: "{name} marked paid" with "Undo" button that restores previous amount and status.
+    - Tapping row body / member name opens full `PaymentBottomSheet` for part-payments and notes.
+    - WhatsApp reminder for members without a phone number shows a modal: "Phone number needed", explanation, phone input, and "Save and open WhatsApp" button.
+  - Drawer & Lock Screen UX fixes:
+    - `PaymentBottomSheet`: 94% maxHeight fits entire drawer without scrolling; `ScrollView` with `keyboardShouldPersistTaps="handled"` ensures fallback scrolling on small screens (360x640) and at 130% text scaling.
+    - `LockScreen`: soft keyboard no longer covers PIN input or "Submit PIN" button; placeholder modernized with centered dots (`••••`) and explicit label.
+    - Biometric loop eliminated: 45s background timeout and 6s unlock buffer prevents Android `AppState` loop.
+  - Diagnostics: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20 passed).
+- **Known Bugs**: None.
+
+### [x] Stage 10: Share to Yípo (Receive Receipts from WhatsApp)
+- **Finished**:
+  - Native integration: Registered Yípo as an Android share target for `image/*` using `expo-share-intent` (^9.0.0) with config plugin in `app.json`.
+  - Receipt Capture Sheet (`src/components/sheets/ShareReceiptModal.tsx`):
+    - Receives images shared from WhatsApp or Android Gallery.
+    - Image preview, group selector (defaulting to the most recently used active group via `getMostRecentActiveGroup()`), member picker showing only members who have not fully paid this round, and amount field pre-filled with remaining due.
+    - Single confirm button: "Record payment".
+    - Manual confirmation: No automatic OCR; organizer confirms every payment by hand.
+    - Image compression: Large receipts compressed to max 1200px width with 0.8 JPEG quality via `expo-image-manipulator`, then saved permanently to `${FileSystem.documentDirectory}receipts/`.
+    - Multi-image handling: Stepped queue through multiple shared receipts one by one ("Receipt 1 of 3", "Receipt 2 of 3").
+    - Edge cases:
+      - No active groups: explains how to create one with a direct "Create a group" button.
+      - Member already paid: warns organizer and offers to record additional payment or cancel.
+      - All members in round paid: offers "Show all members" to record extra payment or skip.
+  - Root Layout integration (`src/app/_layout.tsx`):
+    - Share intent gated behind app lock; biometric security preserved before revealing receipt details.
+  - Diagnostics: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20 passed).
 - **Known Bugs**: None.

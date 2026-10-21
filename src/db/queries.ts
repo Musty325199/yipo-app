@@ -878,3 +878,38 @@ export async function getCalendarSchedule(): Promise<CalendarRoundItem[]> {
     status: item.status,
   }));
 }
+
+/**
+ * Update member's phone number.
+ */
+export async function updateMemberPhone(
+  memberId: string,
+  phone: string,
+  formattedPhone: string
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE members SET phone = ?, formatted_phone = ? WHERE id = ?;`,
+    [phone, formattedPhone, memberId]
+  );
+}
+
+/**
+ * Get most recently updated active group for receipt sharing.
+ */
+export async function getMostRecentActiveGroup(): Promise<GroupRecord | null> {
+  const db = await getDb();
+  return await db.getFirstAsync<GroupRecord>(
+    `SELECT * FROM groups WHERE status = 'active' ORDER BY updated_at DESC LIMIT 1;`
+  );
+}
+
+/**
+ * Get all active groups ordered by updated_at descending.
+ */
+export async function getAllActiveGroups(): Promise<GroupRecord[]> {
+  const db = await getDb();
+  return await db.getAllAsync<GroupRecord>(
+    `SELECT * FROM groups WHERE status = 'active' ORDER BY updated_at DESC;`
+  );
+}

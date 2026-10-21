@@ -22,6 +22,7 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_CONTACTS",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ],
@@ -62,7 +63,19 @@
           "faceIDPermission": "Allow Yípo to use Face ID for app lock."
         }
       ],
-      "./plugins/withAndroidArchitectures"
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Yípo reads your contacts only so you can pick members. They stay on your phone."
+        }
+      ],
+      "./plugins/withAndroidArchitectures",
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["image/*"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

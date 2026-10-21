@@ -19,6 +19,9 @@ import { Button } from '@/components/ui/button';
 import { normalizeNigerianPhone, formatPhoneForDisplay } from '@/utils/phone';
 import { createGroup } from '@/db/queries';
 import { DrawOrderModal, DraftMember } from '@/components/ring/DrawOrderModal';
+import { PasteListModal } from '@/components/group/PasteListModal';
+import { PickContactsModal } from '@/components/group/PickContactsModal';
+import { StartDateModal, formatStartDateDisplay } from '@/components/group/StartDateModal';
 import { Frequency } from '@/db/schema';
 import { scheduleRoundNotification } from '@/utils/notifications';
 import { getAppSetting, setAppSetting } from '@/utils/security';
@@ -35,15 +38,21 @@ export default function NewGroupScreen() {
   const [groupName, setGroupName] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('weekly');
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [lateFeeType, setLateFeeType] = useState<'none' | 'fixed' | 'percentage'>('none');
   const [lateFeeValueStr, setLateFeeValueStr] = useState('');
   const [lateFeeGraceDaysStr, setLateFeeGraceDaysStr] = useState('0');
+  const [showLateFeeOptions, setShowLateFeeOptions] = useState(false);
 
   // Step 2 fields
   const [members, setMembers] = useState<DraftMember[]>([]);
   const [currentName, setCurrentName] = useState('');
   const [currentPhone, setCurrentPhone] = useState('');
   const [currentNote, setCurrentNote] = useState('');
+  const [showAddOneForm, setShowAddOneForm] = useState(false);
+  const [isPasteListOpen, setIsPasteListOpen] = useState(false);
+  const [isPickContactsOpen, setIsPickContactsOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Step 3 draw modal
@@ -100,7 +109,7 @@ export default function NewGroupScreen() {
     persistDraft(trimmed, amountStr, frequency, members, 2);
   };
 
-  // Add Member
+  // Add Member (Phone is optional)
   const handleAddMember = () => {
     setFormError(null);
     const nameTrimmed = currentName.trim();
@@ -109,10 +118,18 @@ export default function NewGroupScreen() {
       return;
     }
 
-    const normalizedPhone = normalizeNigerianPhone(currentPhone);
-    if (!normalizedPhone) {
-      setFormError('Enter a valid Nigerian phone number (e.g. 0803 123 4567).');
-      return;
+    const trimmedPhone = currentPhone.trim();
+    let normalizedPhone = '';
+    let formattedPhone = 'No phone number';
+
+    if (trimmedPhone) {
+      const normalized = normalizeNigerianPhone(trimmedPhone);
+      if (!normalized) {
+        setFormError('Enter a valid Nigerian phone number (e.g. 0803 123 4567) or leave blank.');
+        return;
+      }
+      normalizedPhone = normalized;
+      formattedPhone = formatPhoneForDisplay(normalized);
     }
 
     // Check duplicates
@@ -124,17 +141,19 @@ export default function NewGroupScreen() {
       return;
     }
 
-    const duplicatePhone = members.some((m) => m.phone === normalizedPhone);
-    if (duplicatePhone) {
-      setFormError('This phone number is already added for another member.');
-      return;
+    if (normalizedPhone) {
+      const duplicatePhone = members.some((m) => m.phone === normalizedPhone);
+      if (duplicatePhone) {
+        setFormError('This phone number is already added for another member.');
+        return;
+      }
     }
 
     const newMember: DraftMember = {
       tempId: Crypto.randomUUID(),
       name: nameTrimmed,
       phone: normalizedPhone,
-      formatted_phone: formatPhoneForDisplay(normalizedPhone),
+      formatted_phone: formattedPhone,
       note: currentNote.trim() || undefined,
       turn_order: members.length + 1,
     };
@@ -146,6 +165,36 @@ export default function NewGroupScreen() {
     setCurrentNote('');
     persistDraft(groupName, amountStr, frequency, updatedMembers, 2);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleAddBatchMembers = (batch: DraftMember[]) => {
+    setFormError(null);
+    const existingNames = new Set(members.map((m) => m.name.toLowerCase()));
+    const existingPhones = new Set(members.filter((m) => m.phone).map((m) => m.phone));
+
+    const toAdd: DraftMember[] = [];
+    for (const item of batch) {
+      const nameKey = item.name.toLowerCase();
+      if (existingNames.has(nameKey)) continue;
+      if (item.phone && existingPhones.has(item.phone)) continue;
+
+      toAdd.push({
+        ...item,
+        turn_order: members.length + toAdd.length + 1,
+      });
+      existingNames.add(nameKey);
+      if (item.phone) existingPhones.add(item.phone);
+    }
+
+    if (toAdd.length === 0) {
+      Alert.alert('Notice', 'All members in the list are already in the group.');
+      return;
+    }
+
+    const updated = [...members, ...toAdd];
+    setMembers(updated);
+    persistDraft(groupName, amountStr, frequency, updated, 2);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const handleRemoveMember = (tempId: string) => {
@@ -188,7 +237,7 @@ export default function NewGroupScreen() {
     setIsSaving(true);
     try {
       const amount = parseInt(amountStr.replace(/[^0-9]/g, ''), 10);
-      const startDate = new Date().toISOString();
+      const startDateISO = startDate.toISOString();
       const lateFeeVal = parseInt(lateFeeValueStr.replace(/[^0-9]/g, ''), 10) || 0;
       const graceDays = parseInt(lateFeeGraceDaysStr.replace(/[^0-9]/g, ''), 10) || 0;
 
@@ -196,7 +245,7 @@ export default function NewGroupScreen() {
         name: groupName.trim(),
         contribution_amount: amount,
         frequency,
-        start_date: startDate,
+        start_date: startDateISO,
         late_fee_type: lateFeeType,
         late_fee_value: lateFeeVal,
         late_fee_grace_days: graceDays,
@@ -218,7 +267,7 @@ export default function NewGroupScreen() {
         groupId,
         groupName: groupName.trim(),
         roundNumber: 1,
-        dueDateISO: startDate,
+        dueDateISO: startDateISO,
         collectorName: collector?.name || 'Collector',
       }).catch(() => {});
 
@@ -469,136 +518,195 @@ export default function NewGroupScreen() {
                 </View>
               </View>
 
+              {/* Start Date */}
+              <View style={{ marginBottom: spacing.xl }}>
+                <Text
+                  style={[
+                    styles.label,
+                    { color: colors.ink, fontFamily: typography.bodyMediumFont },
+                  ]}>
+                  Start date
+                </Text>
+                <Pressable
+                  onPress={() => setShowDatePickerModal(true)}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.line,
+                      borderRadius: radii.card,
+                      padding: spacing.base,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    },
+                  ]}>
+                  <Text
+                    style={{
+                      color: colors.ink,
+                      fontFamily: typography.headingSemiBoldFont,
+                      fontSize: 15,
+                    }}>
+                    {formatStartDateDisplay(startDate)}
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.accentText,
+                      fontFamily: typography.bodyMediumFont,
+                      fontSize: 13,
+                    }}>
+                    Change date →
+                  </Text>
+                </Pressable>
+              </View>
+
               {/* Late Fee Rule (Optional Plus Feature) */}
               <View style={{ marginBottom: spacing.xl }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.xs }}>
-                  <Text style={[styles.label, { color: colors.ink, fontFamily: typography.bodyMediumFont }]}>
-                    Late fee rule (optional)
-                  </Text>
-                  <PlusBadge />
-                </View>
-                <Text
+                <Pressable
+                  onPress={() => setShowLateFeeOptions((prev) => !prev)}
                   style={{
-                    color: colors.muted,
-                    fontFamily: typography.bodyFont,
-                    fontSize: 12,
-                    marginBottom: spacing.sm,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: spacing.xs,
                   }}>
-                  Late fees are kept separate and do not change the payout target. You can waive fees at any time.
-                </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.label, { color: colors.ink, fontFamily: typography.bodyMediumFont, marginBottom: 0 }]}>
+                      Late fee rule (optional)
+                    </Text>
+                    <PlusBadge />
+                  </View>
+                  <Text style={{ color: colors.accentText, fontFamily: typography.bodyMediumFont, fontSize: 13 }}>
+                    {showLateFeeOptions ? 'Hide ▲' : 'Show ▼'}
+                  </Text>
+                </Pressable>
 
-                <View style={styles.freqRow}>
-                  {(['none', 'fixed', 'percentage'] as const).map((t) => {
-                    const isSelected = lateFeeType === t;
-                    const label = t === 'none' ? 'None' : t === 'fixed' ? 'Fixed (₦)' : 'Percentage (%)';
-                    return (
-                      <Pressable
-                        key={t}
-                        onPress={() => {
-                          setLateFeeType(t);
-                          if (t !== 'none') {
-                            setTimeout(() => {
-                              scrollViewRef.current?.scrollToEnd({ animated: true });
-                            }, 120);
-                          }
-                        }}
-                        style={[
-                          styles.freqPill,
-                          {
-                            backgroundColor: isSelected
-                              ? isDark
-                                ? 'rgba(245, 158, 11, 0.25)'
-                                : '#FEF3C7'
-                              : colors.surface,
-                            borderColor: isSelected ? colors.accent : colors.line,
-                            borderRadius: radii.pill,
-                            borderWidth: 1,
-                            paddingVertical: spacing.sm + 2,
-                            paddingHorizontal: spacing.sm,
-                          },
-                        ]}>
-                        <Text
-                          style={[
-                            styles.freqText,
-                            {
-                              color: isSelected ? colors.accentText : colors.muted,
-                              fontFamily: isSelected ? typography.headingSemiBoldFont : typography.bodyFont,
-                            },
-                          ]}>
-                          {label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                {showLateFeeOptions && (
+                  <View style={{ marginTop: spacing.sm }}>
+                    <Text
+                      style={{
+                        color: colors.muted,
+                        fontFamily: typography.bodyFont,
+                        fontSize: 12,
+                        marginBottom: spacing.sm,
+                      }}>
+                      Late fees are kept separate and do not change the payout target. You can waive fees at any time.
+                    </Text>
 
-                {lateFeeType !== 'none' && (
-                  <View style={{ marginTop: spacing.md, gap: spacing.md }}>
-                    <View>
-                      <Text
-                        style={[
-                          styles.label,
-                          { color: colors.ink, fontFamily: typography.bodyMediumFont, fontSize: 13 },
-                        ]}>
-                        {lateFeeType === 'fixed' ? 'Fee Amount (₦)' : 'Fee Percentage (%)'}
-                      </Text>
-                      <TextInput
-                        placeholder={lateFeeType === 'fixed' ? 'e.g. 1000' : 'e.g. 5'}
-                        placeholderTextColor={colors.muted}
-                        keyboardType="numeric"
-                        value={lateFeeValueStr}
-                        onChangeText={setLateFeeValueStr}
-                        onFocus={() => {
-                          setTimeout(() => {
-                            scrollViewRef.current?.scrollToEnd({ animated: true });
-                          }, 150);
-                        }}
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: colors.surface,
-                            borderColor: colors.line,
-                            color: colors.ink,
-                            borderRadius: radii.card,
-                            fontFamily: typography.bodyFont,
-                            padding: spacing.base,
-                          },
-                        ]}
-                      />
+                    <View style={styles.freqRow}>
+                      {(['none', 'fixed', 'percentage'] as const).map((t) => {
+                        const isSelected = lateFeeType === t;
+                        const label = t === 'none' ? 'None' : t === 'fixed' ? 'Fixed (₦)' : 'Percentage (%)';
+                        return (
+                          <Pressable
+                            key={t}
+                            onPress={() => {
+                              setLateFeeType(t);
+                              if (t !== 'none') {
+                                setTimeout(() => {
+                                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                                }, 120);
+                              }
+                            }}
+                            style={[
+                              styles.freqPill,
+                              {
+                                backgroundColor: isSelected
+                                  ? isDark
+                                    ? 'rgba(245, 158, 11, 0.25)'
+                                    : '#FEF3C7'
+                                  : colors.surface,
+                                borderColor: isSelected ? colors.accent : colors.line,
+                                borderRadius: radii.pill,
+                                borderWidth: 1,
+                                paddingVertical: spacing.sm + 2,
+                                paddingHorizontal: spacing.sm,
+                              },
+                            ]}>
+                            <Text
+                              style={[
+                                styles.freqText,
+                                {
+                                  color: isSelected ? colors.accentText : colors.muted,
+                                  fontFamily: isSelected ? typography.headingSemiBoldFont : typography.bodyFont,
+                                },
+                              ]}>
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                     </View>
 
-                    <View>
-                      <Text
-                        style={[
-                          styles.label,
-                          { color: colors.ink, fontFamily: typography.bodyMediumFont, fontSize: 13 },
-                        ]}>
-                        Grace Period (days after due date)
-                      </Text>
-                      <TextInput
-                        placeholder="e.g. 3"
-                        placeholderTextColor={colors.muted}
-                        keyboardType="numeric"
-                        value={lateFeeGraceDaysStr}
-                        onChangeText={setLateFeeGraceDaysStr}
-                        onFocus={() => {
-                          setTimeout(() => {
-                            scrollViewRef.current?.scrollToEnd({ animated: true });
-                          }, 150);
-                        }}
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: colors.surface,
-                            borderColor: colors.line,
-                            color: colors.ink,
-                            borderRadius: radii.card,
-                            fontFamily: typography.bodyFont,
-                            padding: spacing.base,
-                          },
-                        ]}
-                      />
-                    </View>
+                    {lateFeeType !== 'none' && (
+                      <View style={{ marginTop: spacing.md, gap: spacing.md }}>
+                        <View>
+                          <Text
+                            style={[
+                              styles.label,
+                              { color: colors.ink, fontFamily: typography.bodyMediumFont, fontSize: 13 },
+                            ]}>
+                            {lateFeeType === 'fixed' ? 'Fee Amount (₦)' : 'Fee Percentage (%)'}
+                          </Text>
+                          <TextInput
+                            placeholder={lateFeeType === 'fixed' ? 'e.g. 1000' : 'e.g. 5'}
+                            placeholderTextColor={colors.muted}
+                            keyboardType="numeric"
+                            value={lateFeeValueStr}
+                            onChangeText={setLateFeeValueStr}
+                            onFocus={() => {
+                              setTimeout(() => {
+                                scrollViewRef.current?.scrollToEnd({ animated: true });
+                              }, 150);
+                            }}
+                            style={[
+                              styles.input,
+                              {
+                                backgroundColor: colors.surface,
+                                borderColor: colors.line,
+                                color: colors.ink,
+                                borderRadius: radii.card,
+                                fontFamily: typography.bodyFont,
+                                padding: spacing.base,
+                              },
+                            ]}
+                          />
+                        </View>
+
+                        <View>
+                          <Text
+                            style={[
+                              styles.label,
+                              { color: colors.ink, fontFamily: typography.bodyMediumFont, fontSize: 13 },
+                            ]}>
+                            Grace Period (days after due date)
+                          </Text>
+                          <TextInput
+                            placeholder="e.g. 3"
+                            placeholderTextColor={colors.muted}
+                            keyboardType="numeric"
+                            value={lateFeeGraceDaysStr}
+                            onChangeText={setLateFeeGraceDaysStr}
+                            onFocus={() => {
+                              setTimeout(() => {
+                                scrollViewRef.current?.scrollToEnd({ animated: true });
+                              }, 150);
+                            }}
+                            style={[
+                              styles.input,
+                              {
+                                backgroundColor: colors.surface,
+                                borderColor: colors.line,
+                                color: colors.ink,
+                                borderRadius: radii.card,
+                                fontFamily: typography.bodyFont,
+                                padding: spacing.base,
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
@@ -610,84 +718,201 @@ export default function NewGroupScreen() {
           {/* STEP 2: ADD MEMBERS */}
           {step === 2 && (
             <View>
-              {/* Add member card */}
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.line,
-                    borderRadius: radii.card,
-                    borderWidth: isDark ? 1 : 0,
-                    padding: spacing.base,
-                    marginBottom: spacing.lg,
-                  },
-                ]}>
-                <Text
+              {/* 3 Action Buttons Side-by-Side */}
+              <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md }}>
+                <Pressable
+                  onPress={() => setIsPasteListOpen(true)}
                   style={[
-                    styles.cardHeaderTitle,
-                    { color: colors.ink, fontFamily: typography.headingSemiBoldFont, marginBottom: spacing.sm },
+                    styles.actionBtn,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.line,
+                      borderRadius: radii.card,
+                      borderWidth: 1,
+                      paddingVertical: spacing.md,
+                      paddingHorizontal: spacing.xs,
+                      flex: 1,
+                      alignItems: 'center',
+                    },
                   ]}>
-                  New Member #{members.length + 1}
-                </Text>
-
-                <TextInput
-                  placeholder="Full name"
-                  placeholderTextColor={colors.muted}
-                  value={currentName}
-                  onChangeText={setCurrentName}
-                  style={[
-                    styles.memberInput,
-                    {
-                      backgroundColor: colors.bg,
+                  <Text
+                    style={{
                       color: colors.ink,
-                      borderRadius: radii.sm,
+                      fontFamily: typography.headingSemiBoldFont,
+                      fontSize: 12,
+                      textAlign: 'center',
+                    }}>
+                    Paste a list
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.muted,
                       fontFamily: typography.bodyFont,
-                      padding: spacing.md,
-                      marginBottom: spacing.sm,
-                    },
-                  ]}
-                />
+                      fontSize: 11,
+                      textAlign: 'center',
+                      marginTop: 2,
+                    }}>
+                    WhatsApp
+                  </Text>
+                </Pressable>
 
-                <TextInput
-                  placeholder="Phone (e.g. 0803 123 4567)"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="phone-pad"
-                  value={currentPhone}
-                  onChangeText={setCurrentPhone}
+                <Pressable
+                  onPress={() => setIsPickContactsOpen(true)}
                   style={[
-                    styles.memberInput,
+                    styles.actionBtn,
                     {
-                      backgroundColor: colors.bg,
-                      color: colors.ink,
-                      borderRadius: radii.sm,
-                      fontFamily: typography.bodyFont,
-                      padding: spacing.md,
-                      marginBottom: spacing.sm,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.line,
+                      borderRadius: radii.card,
+                      borderWidth: 1,
+                      paddingVertical: spacing.md,
+                      paddingHorizontal: spacing.xs,
+                      flex: 1,
+                      alignItems: 'center',
                     },
-                  ]}
-                />
+                  ]}>
+                  <Text
+                    style={{
+                      color: colors.ink,
+                      fontFamily: typography.headingSemiBoldFont,
+                      fontSize: 12,
+                      textAlign: 'center',
+                    }}>
+                    Pick contacts
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.muted,
+                      fontFamily: typography.bodyFont,
+                      fontSize: 11,
+                      textAlign: 'center',
+                      marginTop: 2,
+                    }}>
+                    Multi-select
+                  </Text>
+                </Pressable>
 
-                <TextInput
-                  placeholder="Note (optional)"
-                  placeholderTextColor={colors.muted}
-                  value={currentNote}
-                  onChangeText={setCurrentNote}
+                <Pressable
+                  onPress={() => setShowAddOneForm((prev) => !prev)}
                   style={[
-                    styles.memberInput,
+                    styles.actionBtn,
                     {
-                      backgroundColor: colors.bg,
-                      color: colors.ink,
-                      borderRadius: radii.sm,
-                      fontFamily: typography.bodyFont,
-                      padding: spacing.md,
-                      marginBottom: spacing.md,
+                      backgroundColor: showAddOneForm
+                        ? isDark
+                          ? 'rgba(245, 158, 11, 0.2)'
+                          : '#FEF3C7'
+                        : colors.surface,
+                      borderColor: showAddOneForm ? colors.accent : colors.line,
+                      borderRadius: radii.card,
+                      borderWidth: 1,
+                      paddingVertical: spacing.md,
+                      paddingHorizontal: spacing.xs,
+                      flex: 1,
+                      alignItems: 'center',
                     },
-                  ]}
-                />
-
-                <Button label="+ Add member" onPress={handleAddMember} variant="secondary" />
+                  ]}>
+                  <Text
+                    style={{
+                      color: showAddOneForm ? colors.accentText : colors.ink,
+                      fontFamily: typography.headingSemiBoldFont,
+                      fontSize: 12,
+                      textAlign: 'center',
+                    }}>
+                    Add one
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.muted,
+                      fontFamily: typography.bodyFont,
+                      fontSize: 11,
+                      textAlign: 'center',
+                      marginTop: 2,
+                    }}>
+                    {showAddOneForm ? 'Hide form' : 'Type name'}
+                  </Text>
+                </Pressable>
               </View>
+
+              {/* Single member card */}
+              {(showAddOneForm || members.length === 0) && (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.line,
+                      borderRadius: radii.card,
+                      borderWidth: isDark ? 1 : 0,
+                      padding: spacing.base,
+                      marginBottom: spacing.lg,
+                    },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.cardHeaderTitle,
+                      { color: colors.ink, fontFamily: typography.headingSemiBoldFont, marginBottom: spacing.sm },
+                    ]}>
+                    New Member #{members.length + 1}
+                  </Text>
+
+                  <TextInput
+                    placeholder="Full name"
+                    placeholderTextColor={colors.muted}
+                    value={currentName}
+                    onChangeText={setCurrentName}
+                    style={[
+                      styles.memberInput,
+                      {
+                        backgroundColor: colors.bg,
+                        color: colors.ink,
+                        borderRadius: radii.sm,
+                        fontFamily: typography.bodyFont,
+                        padding: spacing.md,
+                        marginBottom: spacing.sm,
+                      },
+                    ]}
+                  />
+
+                  <TextInput
+                    placeholder="Phone (optional, e.g. 0803 123 4567)"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="phone-pad"
+                    value={currentPhone}
+                    onChangeText={setCurrentPhone}
+                    style={[
+                      styles.memberInput,
+                      {
+                        backgroundColor: colors.bg,
+                        color: colors.ink,
+                        borderRadius: radii.sm,
+                        fontFamily: typography.bodyFont,
+                        padding: spacing.md,
+                        marginBottom: spacing.sm,
+                      },
+                    ]}
+                  />
+
+                  <TextInput
+                    placeholder="Note (optional)"
+                    placeholderTextColor={colors.muted}
+                    value={currentNote}
+                    onChangeText={setCurrentNote}
+                    style={[
+                      styles.memberInput,
+                      {
+                        backgroundColor: colors.bg,
+                        color: colors.ink,
+                        borderRadius: radii.sm,
+                        fontFamily: typography.bodyFont,
+                        padding: spacing.md,
+                        marginBottom: spacing.md,
+                      },
+                    ]}
+                  />
+
+                  <Button label="+ Add member" onPress={handleAddMember} variant="secondary" />
+                </View>
+              )}
 
               {/* Members Added List */}
               <View style={{ marginBottom: spacing.xl }}>
@@ -909,6 +1134,30 @@ export default function NewGroupScreen() {
           persistDraft(groupName, amountStr, frequency, reordered, 3);
         }}
       />
+
+      {/* Start Date Modal */}
+      <StartDateModal
+        visible={showDatePickerModal}
+        currentDate={startDate}
+        onSelectDate={setStartDate}
+        onClose={() => setShowDatePickerModal(false)}
+      />
+
+      {/* Paste List Modal */}
+      <PasteListModal
+        visible={isPasteListOpen}
+        onClose={() => setIsPasteListOpen(false)}
+        onAddMembers={handleAddBatchMembers}
+        existingCount={members.length}
+      />
+
+      {/* Pick Contacts Modal */}
+      <PickContactsModal
+        visible={isPickContactsOpen}
+        onClose={() => setIsPickContactsOpen(false)}
+        onAddMembers={handleAddBatchMembers}
+        existingCount={members.length}
+      />
     </ResponsiveContainer>
   );
 }
@@ -1031,5 +1280,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionBtn: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
 });

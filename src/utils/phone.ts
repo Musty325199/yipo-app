@@ -43,7 +43,10 @@ export function normalizeNigerianPhone(input: string): string | null {
  * Format normalized 234XXXXXXXXXX for display (e.g., 0803 123 4567)
  */
 export function formatPhoneForDisplay(normalized: string): string {
-  if (!normalized || !normalized.startsWith('234') || normalized.length !== 13) {
+  if (!normalized) {
+    return 'No phone number';
+  }
+  if (!normalized.startsWith('234') || normalized.length !== 13) {
     return normalized;
   }
   const local = '0' + normalized.slice(3);
