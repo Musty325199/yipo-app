@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -26,6 +26,7 @@ import { PlusBadge } from '@/utils/plus';
 
 export default function NewGroupScreen() {
   const { colors, typography, spacing, radii, isDark, formatNaira } = useTheme();
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   // Step state: 1 = Group Info, 2 = Members, 3 = Turn Order
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -237,9 +238,11 @@ export default function NewGroupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}>
         <ScrollView
+          ref={scrollViewRef}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingHorizontal: spacing.base, paddingBottom: spacing.xl },
+            { paddingHorizontal: spacing.base, paddingBottom: 280 },
           ]}
           showsVerticalScrollIndicator={false}>
           {/* Header */}
@@ -450,10 +453,11 @@ export default function NewGroupScreen() {
                           style={[
                             styles.freqText,
                             {
-                              color: isSelected ? colors.ink : colors.muted,
+                              color: isSelected ? colors.onAccent : colors.muted,
                               fontFamily: isSelected
                                 ? typography.headingSemiBoldFont
                                 : typography.bodyFont,
+                              fontWeight: isSelected ? '700' : '500',
                               textTransform: 'capitalize',
                             },
                           ]}>
@@ -490,7 +494,14 @@ export default function NewGroupScreen() {
                     return (
                       <Pressable
                         key={t}
-                        onPress={() => setLateFeeType(t)}
+                        onPress={() => {
+                          setLateFeeType(t);
+                          if (t !== 'none') {
+                            setTimeout(() => {
+                              scrollViewRef.current?.scrollToEnd({ animated: true });
+                            }, 120);
+                          }
+                        }}
                         style={[
                           styles.freqPill,
                           {
@@ -537,6 +548,11 @@ export default function NewGroupScreen() {
                         keyboardType="numeric"
                         value={lateFeeValueStr}
                         onChangeText={setLateFeeValueStr}
+                        onFocus={() => {
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }, 150);
+                        }}
                         style={[
                           styles.input,
                           {
@@ -565,6 +581,11 @@ export default function NewGroupScreen() {
                         keyboardType="numeric"
                         value={lateFeeGraceDaysStr}
                         onChangeText={setLateFeeGraceDaysStr}
+                        onFocus={() => {
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }, 150);
+                        }}
                         style={[
                           styles.input,
                           {
@@ -817,7 +838,7 @@ export default function NewGroupScreen() {
                           style={[
                             styles.turnNumber,
                             {
-                              color: colors.ink,
+                              color: isFirst ? colors.onAccent : colors.ink,
                               fontFamily: typography.headingSemiBoldFont,
                             },
                           ]}>

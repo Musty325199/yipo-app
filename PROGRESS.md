@@ -93,5 +93,13 @@
   - Bulk WhatsApp Reminder Queue (`src/app/reminders.tsx`): dedicated screen listing unpaid members across active groups. Tones: Friendly, Firm, Last notice (zero emojis). Honest status tracking: records "Opened in WhatsApp, [time]" with a "Back to Pending" reversal action. Empty state copy: "No one left to remind." / "Everyone is either paid or already reminded."
   - Complete emoji removal across the entire app copy, button labels, notifications, and templates (replaced with stroke icons).
   - Settings Screen enhancements: Yípo Plus launch section ("Launch Edition • Free during launch") and editable Organizer Name setting stored in SQLite `app_settings`.
+  - Device & UI Polish Pass:
+    - Button text wrapping rule strictly enforced: No button label cuts into line 2 unless it exceeds 3 words; auto-scaled with `numberOfLines={1}` and `adjustsFontSizeToFit`.
+    - Android keyboard avoidance: Auto-scrolling on focus and keyboard-aware padding for Late Fee Amount and Grace Period inputs in `new.tsx`.
+    - Biometric instant auto-prompt: Root content gated behind lock check; native fingerprint scanner engages immediately on launch without requiring screen taps; instantly unlocks upon recognition.
+    - Responsive Plus Action Cards: Replaced cramped 50/50 side-by-side buttons with full-width responsive action cards for "Export Statement" and "Bulk Reminders" on `[id].tsx`.
+    - Custom in-app reset modal: Replaced plain native Android `Alert.alert` for Reset to Unpaid with a custom theme-styled confirmation modal.
+    - Testable Late Fee & Waiver UI: Late fee policy card is always visible in `PaymentBottomSheet.tsx` when a group has a late fee rule, allowing immediate testing of Apply Fee, Waive Fee (with reason), and Restore Fee.
+    - Contrast Overhaul: Added `colors.onAccent` for ultra-high contrast dark text on yellow accent elements (Friendly tone chips, frequency pills, turn number badges, primary buttons) across light and dark modes.
   - Diagnostics verified: `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors, 0 warnings), `npx expo-doctor` (20/20 passed).
 - **Known Bugs**: None.

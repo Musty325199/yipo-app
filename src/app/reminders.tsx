@@ -214,8 +214,9 @@ export default function BulkRemindersScreen() {
                   styles.toneChipText,
                   {
                     color:
-                      selectedTone === 'friendly' ? colors.accentText : colors.muted,
+                      selectedTone === 'friendly' ? colors.onAccent : colors.muted,
                     fontFamily: typography.bodySemiBoldFont,
+                    fontWeight: selectedTone === 'friendly' ? '700' : '500',
                   },
                 ]}>
                 Friendly

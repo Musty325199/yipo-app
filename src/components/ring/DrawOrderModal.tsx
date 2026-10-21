@@ -317,14 +317,16 @@ export function DrawOrderModal({
               label={isSpinning ? 'Drawing...' : hasDrawn ? 'Redraw' : 'Draw order'}
               onPress={handleStartDraw}
               disabled={isSpinning}
-              style={{ flex: 1, marginRight: spacing.sm }}
+              style={{ flex: 1, marginRight: spacing.sm, paddingHorizontal: spacing.sm, minHeight: 46 }}
+              textStyle={{ fontSize: 14 }}
             />
             <Button
               label="Keep order"
               onPress={handleSaveAndConfirm}
               variant="secondary"
               disabled={isSpinning}
-              style={{ flex: 1 }}
+              style={{ flex: 1, paddingHorizontal: spacing.sm, minHeight: 46 }}
+              textStyle={{ fontSize: 14 }}
             />
           </View>
         </View>

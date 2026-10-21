@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -25,6 +25,25 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
   const [enteredPin, setEnteredPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Automatically prompt for fingerprint/biometrics as soon as lock screen mounts
+  useEffect(() => {
+    let isMounted = true;
+    if (visible) {
+      authenticateWithBiometrics('Unlock Yípo Record Book').then((success) => {
+        if (!isMounted) return;
+        if (success) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          onUnlocked();
+        } else {
+          setErrorMsg('Biometric not recognized. Tap below to retry or use PIN.');
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, onUnlocked]);
+
   const handleBiometricAuth = async () => {
     setErrorMsg('');
     const success = await authenticateWithBiometrics('Unlock Yípo Record Book');
@@ -33,8 +52,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
       onUnlocked();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setErrorMsg('Authentication canceled or failed. Try PIN.');
-      setPinMode(true);
+      setErrorMsg('Biometric not recognized. Tap below to retry or use PIN.');
     }
   };
 

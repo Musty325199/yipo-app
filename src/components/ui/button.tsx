@@ -44,7 +44,7 @@ export function Button({
   };
 
   let backgroundColor = colors.accent;
-  let textColor = '#0A1C16';
+  let textColor = colors.onAccent;
   let borderColor: string | undefined = undefined;
 
   if (variant === 'secondary') {
@@ -58,6 +58,10 @@ export function Button({
     backgroundColor = colors.unpaid;
     textColor = '#FFFFFF';
   }
+
+  // Rule: no text inside button must cut into second line except if more than 3 words for small devices
+  const words = label ? label.trim().split(/\s+/).filter(Boolean) : [];
+  const maxLines = words.length > 3 ? 2 : 1;
 
   return (
     <AnimatedPressable
@@ -73,20 +77,24 @@ export function Button({
           borderColor,
           borderWidth: borderColor ? 1 : 0,
           paddingVertical: spacing.md,
-          paddingHorizontal: spacing.lg,
+          paddingHorizontal: spacing.md,
           opacity: disabled ? 0.5 : 1,
         },
         animatedStyle,
         style,
       ]}>
       <View style={styles.contentRow}>
-        {icon ? <View style={{ marginRight: spacing.sm }}>{icon}</View> : null}
+        {icon ? <View style={{ marginRight: spacing.xs }}>{icon}</View> : null}
         <Text
+          numberOfLines={maxLines}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
           style={[
             styles.buttonText,
             {
               color: textColor,
               fontFamily: typography.headingSemiBoldFont,
+              textAlign: 'center',
             },
             textStyle,
           ]}>
@@ -101,15 +109,17 @@ const styles = StyleSheet.create({
   buttonBase: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 50,
   },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
   },
   buttonText: {
     fontSize: 16,
     letterSpacing: -0.2,
+    flexShrink: 1,
   },
 });

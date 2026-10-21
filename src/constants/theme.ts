@@ -6,6 +6,7 @@ export interface ColorTokens {
   line: string;
   accent: string;
   accentText: string;
+  onAccent: string;
   paid: string;
   unpaid: string;
 }
@@ -18,6 +19,7 @@ export const LightColors: ColorTokens = {
   line: '#E2E8E4',
   accent: '#F59E0B',
   accentText: '#B45309',
+  onAccent: '#0A1C16',
   paid: '#10B981',
   unpaid: '#EF4444',
 };
@@ -29,7 +31,8 @@ export const DarkColors: ColorTokens = {
   muted: '#8A9E95',
   line: '#1A3329',
   accent: '#FBBF24',
-  accentText: '#FBBF24',
+  accentText: '#FCD34D',
+  onAccent: '#081410',
   paid: '#10B981',
   unpaid: '#F87171',
 };

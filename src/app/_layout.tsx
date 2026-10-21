@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { View, AppState } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
   BricolageGrotesque_600SemiBold,
@@ -43,15 +43,33 @@ function RootContent() {
 export default function RootLayout() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [lockCheckDone, setLockCheckDone] = useState(false);
 
   useEffect(() => {
     setupNotificationChannels().catch(() => {});
+
+    // Initial check
     (async () => {
       const lockEnabled = await isAppLockEnabled();
       if (lockEnabled) {
         setIsLocked(true);
       }
+      setLockCheckDone(true);
     })();
+
+    // Foreground listener: lock again when app returns from background
+    const subscription = AppState.addEventListener('change', async (nextState) => {
+      if (nextState === 'active') {
+        const lockEnabled = await isAppLockEnabled();
+        if (lockEnabled) {
+          setIsLocked(true);
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -66,9 +84,12 @@ export default function RootLayout() {
     return null;
   }
 
+  // Determine whether to reveal the app content
+  const canShowContent = splashAnimationDone && lockCheckDone && !isLocked;
+
   return (
     <ThemeProvider>
-      <RootContent />
+      {canShowContent && <RootContent />}
       {isLocked && splashAnimationDone && (
         <LockScreen visible={isLocked} onUnlocked={() => setIsLocked(false)} />
       )}

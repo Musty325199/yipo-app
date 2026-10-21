@@ -271,6 +271,9 @@ export async function recordPayment(input: {
   status: 'unpaid' | 'part_paid' | 'paid';
   receiptImageUri?: string | null;
   note?: string | null;
+  lateFeeAmount?: number;
+  lateFeeWaived?: boolean;
+  lateFeeWaivedReason?: string | null;
 }): Promise<void> {
   const db = await getDb();
   const now = getNowISO();
@@ -296,6 +299,10 @@ export async function recordPayment(input: {
       lateFeeAmount = 0;
       lateFeeWaived = 0;
       lateFeeWaivedReason = null;
+    } else if (input.lateFeeAmount !== undefined) {
+      lateFeeAmount = input.lateFeeAmount;
+      lateFeeWaived = input.lateFeeWaived ? 1 : 0;
+      lateFeeWaivedReason = input.lateFeeWaived ? (input.lateFeeWaivedReason ?? null) : null;
     } else if (lateFeeAmount === 0 && lateFeeWaived === 0) {
       // First time recording payment for this round
       const round = await db.getFirstAsync<RoundRecord>(

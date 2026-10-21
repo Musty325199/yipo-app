@@ -125,6 +125,9 @@ export default function GroupRoundScreen() {
     status: 'unpaid' | 'part_paid' | 'paid';
     receiptImageUri?: string | null;
     note?: string | null;
+    lateFeeAmount?: number;
+    lateFeeWaived?: boolean;
+    lateFeeWaivedReason?: string | null;
   }) => {
     await recordPayment(input);
     await loadData();
@@ -545,57 +548,77 @@ export default function GroupRoundScreen() {
               style={{ width: '100%' }}
             />
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <Pressable
-                onPress={handleExportPdf}
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  paddingVertical: spacing.md,
+            {/* Export Statement Action Card */}
+            <Pressable
+              onPress={handleExportPdf}
+              style={({ pressed }) => [
+                styles.plusActionCard,
+                {
                   backgroundColor: colors.surface,
-                  borderRadius: radii.card,
-                  borderWidth: 1,
                   borderColor: colors.line,
-                }}>
+                  borderRadius: radii.card,
+                  opacity: pressed ? 0.75 : 1,
+                },
+              ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
                   style={{
                     color: colors.ink,
                     fontFamily: typography.headingSemiBoldFont,
-                    fontSize: 13,
+                    fontSize: 14,
                   }}>
                   Export Statement
                 </Text>
                 <PlusBadge />
-              </Pressable>
-
-              <Pressable
-                onPress={() => router.push({ pathname: '/reminders', params: { groupId: group.id } })}
+              </View>
+              <Text
                 style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  paddingVertical: spacing.md,
-                  backgroundColor: colors.surface,
-                  borderRadius: radii.card,
-                  borderWidth: 1,
-                  borderColor: colors.line,
+                  color: colors.accentText,
+                  fontFamily: typography.bodyMediumFont,
+                  fontSize: 13,
                 }}>
+                PDF →
+              </Text>
+            </Pressable>
+
+            {/* Bulk Reminders Action Card */}
+            <Pressable
+              onPress={() => router.push({ pathname: '/reminders', params: { groupId: group.id } })}
+              style={({ pressed }) => [
+                styles.plusActionCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.line,
+                  borderRadius: radii.card,
+                  opacity: pressed ? 0.75 : 1,
+                },
+              ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
                   style={{
                     color: colors.ink,
                     fontFamily: typography.headingSemiBoldFont,
-                    fontSize: 13,
+                    fontSize: 14,
                   }}>
-                  Reminders ({unpaidCount})
+                  Bulk Reminders ({unpaidCount} unpaid)
                 </Text>
                 <PlusBadge />
-              </Pressable>
-            </View>
+              </View>
+              <Text
+                style={{
+                  color: colors.accentText,
+                  fontFamily: typography.bodyMediumFont,
+                  fontSize: 13,
+                }}>
+                Queue →
+              </Text>
+            </Pressable>
           </View>
         </View>
 
@@ -1044,5 +1067,14 @@ const styles = StyleSheet.create({
   modalBtnRow: {
     flexDirection: 'row',
     marginTop: 8,
+  },
+  plusActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    minHeight: 52,
   },
 });
