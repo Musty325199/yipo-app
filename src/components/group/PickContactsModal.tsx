@@ -11,7 +11,8 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import * as Contacts from 'expo-contacts';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Contacts from 'expo-contacts/legacy';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ export function PickContactsModal({
   existingCount,
 }: PickContactsModalProps) {
   const { colors, typography, radii, spacing, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<ContactItem[]>([]);
@@ -76,35 +78,38 @@ export function PickContactsModal({
 
         const { data } = await Contacts.getContactsAsync({
           fields: [Contacts.Fields.PhoneNumbers],
-          sort: Contacts.SortTypes.FirstName,
         });
 
         if (!isMounted) return;
 
         const items: ContactItem[] = [];
-        for (const c of data) {
-          const name = c.name?.trim() || `${c.firstName || ''} ${c.lastName || ''}`.trim();
-          if (!name) continue;
+        if (data && Array.isArray(data)) {
+          for (const c of data) {
+            const name = c.name?.trim() || `${c.firstName || ''} ${c.lastName || ''}`.trim();
+            if (!name) continue;
 
-          let rawPhone = '';
-          if (c.phoneNumbers && c.phoneNumbers.length > 0) {
-            rawPhone = c.phoneNumbers[0].number || '';
+            let rawPhone = '';
+            if (c.phoneNumbers && c.phoneNumbers.length > 0) {
+              rawPhone = c.phoneNumbers[0].number || '';
+            }
+
+            const normalized = rawPhone ? normalizeNigerianPhone(rawPhone) : null;
+            const formatted = normalized ? formatPhoneForDisplay(normalized) : 'No phone number';
+
+            items.push({
+              id: c.id || `contact-${items.length}`,
+              name,
+              phone: normalized || '',
+              formattedPhone: formatted,
+            });
           }
-
-          const normalized = rawPhone ? normalizeNigerianPhone(rawPhone) : null;
-          const formatted = normalized ? formatPhoneForDisplay(normalized) : 'No phone number';
-
-          items.push({
-            id: c.id || `contact-${items.length}`,
-            name,
-            phone: normalized || '',
-            formattedPhone: formatted,
-          });
         }
 
+        items.sort((a, b) => a.name.localeCompare(b.name));
         setContacts(items);
-      } catch {
+      } catch (err) {
         if (!isMounted) return;
+        console.warn('Contacts load error:', err);
         Alert.alert('Contacts', 'Unable to load contacts from your device.');
         onClose();
       } finally {
@@ -169,7 +174,14 @@ export function PickContactsModal({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <View style={{ flex: 1, backgroundColor: colors.surface }}>
         {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.line }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: colors.line,
+              paddingTop: Math.max(insets.top, 16),
+            },
+          ]}>
           <Pressable onPress={handleClose} style={styles.headerBtn}>
             <Text style={{ color: colors.muted, fontFamily: typography.bodyMediumFont, fontSize: 15 }}>
               Cancel
@@ -285,6 +297,7 @@ export function PickContactsModal({
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.line,
+              paddingBottom: Math.max(insets.bottom, 16),
             },
           ]}>
           <Button
@@ -306,7 +319,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingBottom: 14,
     borderBottomWidth: 1,
   },
   headerBtn: {

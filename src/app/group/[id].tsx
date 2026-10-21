@@ -766,21 +766,9 @@ export default function GroupRoundScreen() {
             const isPartPaid = p.status === 'part_paid';
 
             return (
-              <Pressable
+              <View
                 key={p.id}
-                onLongPress={() => {
-                  if (memberObj) {
-                    Haptics.selectionAsync();
-                    handleSelectMember(memberObj);
-                  }
-                }}
-                onPress={() => {
-                  if (memberObj) {
-                    Haptics.selectionAsync();
-                    handleSelectMember(memberObj);
-                  }
-                }}
-                style={({ pressed }) => [
+                style={[
                   styles.paymentRow,
                   {
                     backgroundColor: colors.surface,
@@ -789,19 +777,19 @@ export default function GroupRoundScreen() {
                     borderRadius: radii.card,
                     padding: spacing.md,
                     marginBottom: spacing.sm,
-                    transform: [{ scale: pressed ? 0.98 : 1 }],
                   },
                 ]}>
                 {/* One-tap Paid Turn circle */}
                 <Pressable
-                  hitSlop={10}
-                  onPress={(e) => {
-                    e.stopPropagation();
+                  hitSlop={8}
+                  onPress={() => {
                     if (memberObj) {
                       handleQuickOneTapPaid(p, memberObj);
                     }
                   }}
-                  style={[
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mark ${p.member_name} paid`}
+                  style={({ pressed }) => [
                     styles.memberDot,
                     {
                       backgroundColor: isCollector
@@ -814,6 +802,7 @@ export default function GroupRoundScreen() {
                       borderRadius: radii.pill,
                       borderWidth: isPaid || isCollector || isPartPaid ? 0 : 1,
                       borderColor: colors.line,
+                      transform: [{ scale: pressed ? 0.9 : 1 }],
                     },
                   ]}>
                   <Text
@@ -831,96 +820,114 @@ export default function GroupRoundScreen() {
                   </Text>
                 </Pressable>
 
-                {/* Member Info */}
-                <View style={{ flex: 1, marginLeft: spacing.md, marginRight: spacing.xs }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text
-                      numberOfLines={2}
-                      style={[
-                        styles.memberName,
-                        { color: colors.ink, fontFamily: typography.headingSemiBoldFont, flexShrink: 1 },
-                      ]}>
-                      {p.member_name}
-                    </Text>
-                    {isCollector && (
-                      <View
+                {/* Member Info & Details (Tapping this opens the payment drawer) */}
+                <Pressable
+                  onPress={() => {
+                    if (memberObj) {
+                      Haptics.selectionAsync();
+                      handleSelectMember(memberObj);
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    {
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      opacity: pressed ? 0.75 : 1,
+                    },
+                  ]}>
+                  {/* Member Info */}
+                  <View style={{ flex: 1, marginLeft: spacing.md, marginRight: spacing.xs }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Text
+                        numberOfLines={2}
                         style={[
-                          styles.collectorPill,
-                          {
-                            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
-                            borderRadius: radii.pill,
-                          },
+                          styles.memberName,
+                          { color: colors.ink, fontFamily: typography.headingSemiBoldFont, flexShrink: 1 },
                         ]}>
-                        <Text
+                        {p.member_name}
+                      </Text>
+                      {isCollector && (
+                        <View
                           style={[
-                            styles.collectorPillText,
-                            { color: colors.accentText, fontFamily: typography.bodySemiBoldFont, fontWeight: '700' },
+                            styles.collectorPill,
+                            {
+                              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+                              borderRadius: radii.pill,
+                            },
                           ]}>
-                          Collector
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                          <Text
+                            style={[
+                              styles.collectorPillText,
+                              { color: colors.accentText, fontFamily: typography.bodySemiBoldFont, fontWeight: '700' },
+                            ]}>
+                            Collector
+                          </Text>
+                        </View>
+                      )}
+                    </View>
 
-                  <View style={styles.subMetaRow}>
-                    <Text
-                      style={[
-                        styles.memberPhone,
-                        { color: colors.muted, fontFamily: typography.bodyFont },
-                      ]}>
-                      {p.member_phone}
-                    </Text>
-                    {p.receipt_image_uri && (
+                    <View style={styles.subMetaRow}>
                       <Text
                         style={[
-                          styles.receiptFlag,
-                          { color: colors.paid, fontFamily: typography.bodyMediumFont },
+                          styles.memberPhone,
+                          { color: colors.muted, fontFamily: typography.bodyFont },
                         ]}>
-                        • Receipt attached
+                        {p.member_phone}
                       </Text>
-                    )}
+                      {p.receipt_image_uri && (
+                        <Text
+                          style={[
+                            styles.receiptFlag,
+                            { color: colors.paid, fontFamily: typography.bodyMediumFont },
+                          ]}>
+                          • Receipt attached
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                </View>
 
-                {/* Amount / Status Indicator */}
-                <View style={{ alignItems: 'flex-end', marginLeft: spacing.sm }}>
-                  <Text
-                    style={[
-                      styles.amountStatus,
-                      {
-                        color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.ink,
-                        fontFamily: typography.headingSemiBoldFont,
-                      },
-                    ]}>
-                    {isPaid
-                      ? formatNaira(p.amount)
-                      : isPartPaid
-                      ? `${formatNaira(p.amount)} paid`
-                      : formatNaira(p.target_amount)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statusSubText,
-                      {
-                        color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.unpaid,
-                        fontFamily: typography.bodyFont,
-                      },
-                    ]}>
-                    {isPaid ? 'Paid' : isPartPaid ? 'Part Paid' : 'Unpaid'}
-                  </Text>
-                  {p.late_fee_amount && p.late_fee_amount > 0 ? (
+                  {/* Amount / Status Indicator */}
+                  <View style={{ alignItems: 'flex-end', marginLeft: spacing.sm }}>
                     <Text
-                      style={{
-                        color: p.late_fee_waived ? colors.muted : colors.accentText,
-                        fontSize: 11,
-                        fontFamily: typography.bodyFont,
-                        marginTop: 2,
-                      }}>
-                      {p.late_fee_waived ? 'Fee waived' : `+${formatNaira(p.late_fee_amount)} late`}
+                      style={[
+                        styles.amountStatus,
+                        {
+                          color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.ink,
+                          fontFamily: typography.headingSemiBoldFont,
+                        },
+                      ]}>
+                      {isPaid
+                        ? formatNaira(p.amount)
+                        : isPartPaid
+                        ? `${formatNaira(p.amount)} paid`
+                        : formatNaira(p.target_amount)}
                     </Text>
-                  ) : null}
-                </View>
-              </Pressable>
+                    <Text
+                      style={[
+                        styles.statusSubText,
+                        {
+                          color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.unpaid,
+                          fontFamily: typography.bodyFont,
+                        },
+                      ]}>
+                      {isPaid ? 'Paid' : isPartPaid ? 'Part Paid' : 'Unpaid'}
+                    </Text>
+                    {p.late_fee_amount && p.late_fee_amount > 0 ? (
+                      <Text
+                        style={{
+                          color: p.late_fee_waived ? colors.muted : colors.accentText,
+                          fontSize: 11,
+                          fontFamily: typography.bodyFont,
+                          marginTop: 2,
+                        }}>
+                        {p.late_fee_waived ? 'Fee waived' : `+${formatNaira(p.late_fee_amount)} late`}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              </View>
             );
           })}
         </View>

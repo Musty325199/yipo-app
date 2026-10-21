@@ -154,5 +154,9 @@
     - Fixed collector text contrast in round ring and member list: uses `colors.onAccent` on saffron gold dots to guarantee accessibility compliance in both light and dark modes.
     - Multi-line text wrapping: Member names and action labels configured to wrap across up to 2 lines (`numberOfLines={2}`, `flexShrink: 1`) so long names never truncate on small screens.
     - Keyboard interaction: `keyboardShouldPersistTaps="handled"` added to all modal and sheet ScrollViews.
+    - Touch Target Isolation: Decoupled member row into independent sibling touch targets (left turn dot for 1-tap paid + undo toast; right body for opening payment drawer).
+    - Modal Safe Insets: Added dynamic `useSafeAreaInsets()` to `PasteListModal`, `PickContactsModal`, and `ShareReceiptModal` so headers and Cancel buttons are never cut off by camera punch holes or status bars.
+    - Pick Contacts Resilience: Switched to `expo-contacts/legacy` with JavaScript alphabetical sorting to ensure faultless contacts loading on Android and Samsung devices.
+    - Restored Payment Drawer: Restored full-width spacious layout, large part-payment & note inputs, always-visible late fee card with Apply/Waive/Restore actions, and "View reliability history" link.
   - Diagnostics: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20 passed).
 - **Known Bugs**: None.

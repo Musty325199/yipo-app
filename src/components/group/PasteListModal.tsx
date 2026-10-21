@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ export function PasteListModal({
   existingCount,
 }: PasteListModalProps) {
   const { colors, typography, radii, spacing } = useTheme();
+  const insets = useSafeAreaInsets();
   const [rawText, setRawText] = useState('');
   const [editedEntries, setEditedEntries] = useState<ParsedEntry[] | null>(null);
 
@@ -154,7 +156,14 @@ export function PasteListModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1, backgroundColor: colors.surface }}>
-        <View style={[styles.header, { borderBottomColor: colors.line }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: colors.line,
+              paddingTop: Math.max(insets.top, 16),
+            },
+          ]}>
           <Pressable onPress={handleClose} style={styles.headerBtn}>
             <Text style={{ color: colors.muted, fontFamily: typography.bodyMediumFont, fontSize: 15 }}>
               Cancel
@@ -276,6 +285,7 @@ export function PasteListModal({
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.line,
+              paddingBottom: Math.max(insets.bottom, 16),
             },
           ]}>
           <Button
@@ -297,7 +307,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingBottom: 14,
     borderBottomWidth: 1,
   },
   headerBtn: {

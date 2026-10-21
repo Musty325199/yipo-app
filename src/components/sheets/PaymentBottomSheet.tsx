@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Animated, {
@@ -362,26 +363,40 @@ function PaymentSheetContent({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            bounces={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: spacing.base }}>
+            contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: spacing.xl }}>
             {/* Member Info Row */}
-            <View style={[styles.headerRow, { marginBottom: spacing.xs }]}>
+            <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
                 <Text
                   style={[
                     styles.memberName,
-                    { color: colors.ink, fontFamily: typography.headingFont, fontSize: 20 },
+                    { color: colors.ink, fontFamily: typography.headingFont },
                   ]}>
                   {member.name}
                 </Text>
                 <Text
                   style={[
                     styles.memberMeta,
-                    { color: colors.muted, fontFamily: typography.bodyFont, fontSize: 12 },
+                    { color: colors.muted, fontFamily: typography.bodyFont },
                   ]}>
                   Turn #{member.turn_order} • {member.formatted_phone}
                 </Text>
+                <Pressable
+                  onPress={() => {
+                    onClose();
+                    router.push(`/member/${member.id}`);
+                  }}
+                  style={{ marginTop: 4 }}>
+                  <Text
+                    style={{
+                      color: colors.accentText,
+                      fontSize: 12,
+                      fontFamily: typography.bodySemiBoldFont,
+                    }}>
+                    View reliability history →
+                  </Text>
+                </Pressable>
               </View>
 
               {/* Status Badge */}
@@ -395,8 +410,6 @@ function PaymentSheetContent({
                       ? colors.partPaid
                       : colors.bg,
                     borderRadius: radii.pill,
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
                   },
                 ]}>
                 <Text
@@ -405,7 +418,6 @@ function PaymentSheetContent({
                     {
                       color: isPaid || isPartPaid ? '#FFFFFF' : colors.muted,
                       fontFamily: typography.headingSemiBoldFont,
-                      fontSize: 11,
                     },
                   ]}>
                   {isPaid ? 'PAID' : isPartPaid ? 'PART PAID' : 'UNPAID'}
@@ -422,23 +434,22 @@ function PaymentSheetContent({
                   borderRadius: radii.card,
                   borderColor: colors.line,
                   borderWidth: 1,
-                  paddingVertical: spacing.xs + 2,
-                  paddingHorizontal: spacing.md,
-                  marginVertical: 4,
+                  padding: spacing.md,
+                  marginVertical: spacing.md,
                 },
               ]}>
               <View style={styles.targetCol}>
                 <Text
                   style={[
                     styles.targetLabel,
-                    { color: colors.muted, fontFamily: typography.bodyFont, fontSize: 11 },
+                    { color: colors.muted, fontFamily: typography.bodyFont },
                   ]}>
-                  Contribution Due
+                  Contribution due
                 </Text>
                 <Text
                   style={[
                     styles.targetAmount,
-                    { color: colors.ink, fontFamily: typography.headingFont, fontSize: 17 },
+                    { color: colors.ink, fontFamily: typography.headingFont },
                   ]}>
                   {formatNaira(targetAmount)}
                 </Text>
@@ -448,9 +459,9 @@ function PaymentSheetContent({
                   <Text
                     style={[
                       styles.targetLabel,
-                      { color: colors.muted, fontFamily: typography.bodyFont, fontSize: 11 },
+                      { color: colors.muted, fontFamily: typography.bodyFont },
                     ]}>
-                    Recorded So Far
+                    Recorded so far
                   </Text>
                   <Text
                     style={[
@@ -458,7 +469,6 @@ function PaymentSheetContent({
                       {
                         color: isPaid ? colors.paid : colors.partPaid,
                         fontFamily: typography.headingFont,
-                        fontSize: 17,
                       },
                     ]}>
                     {formatNaira(payment.amount)}
@@ -467,142 +477,141 @@ function PaymentSheetContent({
               )}
             </View>
 
-            {/* Late Fee Notice Card */}
-            {((group?.late_fee_type && group.late_fee_type !== 'none') || lateFeeAmount > 0) && (
-              <View
-                style={{
-                  backgroundColor: isWaived
-                    ? (isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5')
-                    : (isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7'),
-                  borderColor: isWaived
-                    ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0')
-                    : (isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A'),
-                  borderRadius: radii.card,
-                  borderWidth: 1,
-                  paddingVertical: spacing.xs + 2,
-                  paddingHorizontal: spacing.md,
-                  marginVertical: 4,
-                }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flex: 1, marginRight: spacing.sm }}>
-                    <Text
-                      style={{
-                        color: isWaived ? colors.paid : colors.accentText,
-                        fontFamily: typography.headingSemiBoldFont,
-                        fontSize: 11,
-                        textTransform: 'uppercase',
-                        letterSpacing: 0.5,
-                      }}>
-                      Late fees (kept separate)
-                    </Text>
-                    <Text
-                      numberOfLines={2}
-                      style={{
-                        color: colors.ink,
-                        fontFamily: typography.bodyFont,
-                        fontSize: 12,
-                        marginTop: 2,
-                        lineHeight: 16,
-                      }}>
-                      {lateFeeAmount > 0
-                        ? isWaived
-                          ? `Late fee: ${formatNaira(lateFeeAmount)} (Waived: ${waivedReason || 'Organizer waiver'})`
-                          : `Late fee: ${formatNaira(lateFeeAmount)}. Paid ${daysLate} day${daysLate === 1 ? '' : 's'} late.`
-                        : `Rule: ${group?.late_fee_type === 'fixed' ? formatNaira(policyFee) : `${formatNaira(policyFee)} (${group?.late_fee_value}%)`} grace ${group?.late_fee_grace_days || 0}d. No fee yet.`}
-                    </Text>
-                  </View>
+            {/* Late Fee Policy / Waiver Card (Always accessible) */}
+            <View
+              style={{
+                backgroundColor: isWaived
+                  ? (isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5')
+                  : (isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7'),
+                borderColor: isWaived
+                  ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0')
+                  : (isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A'),
+                borderRadius: radii.card,
+                borderWidth: 1,
+                padding: spacing.md,
+                marginBottom: spacing.md,
+              }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                  <Text
+                    style={{
+                      color: isWaived ? colors.paid : colors.accentText,
+                      fontFamily: typography.headingSemiBoldFont,
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                    }}>
+                    Late fees (kept separate)
+                  </Text>
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      color: colors.ink,
+                      fontFamily: typography.bodyFont,
+                      fontSize: 13,
+                      marginTop: 2,
+                      lineHeight: 18,
+                    }}>
+                    {lateFeeAmount > 0
+                      ? isWaived
+                        ? `Late fee: ${formatNaira(lateFeeAmount)} (Waived: ${waivedReason || 'Organizer waiver'})`
+                        : `Late fee: ${formatNaira(lateFeeAmount)}. Paid ${daysLate} day${daysLate === 1 ? '' : 's'} late.`
+                      : group?.late_fee_type && group.late_fee_type !== 'none'
+                      ? `Rule: ${group.late_fee_type === 'fixed' ? formatNaira(policyFee) : `${formatNaira(policyFee)} (${group.late_fee_value}%)`}, grace ${group.late_fee_grace_days || 0}d. No fee yet.`
+                      : 'No late fee charged for this round.'}
+                  </Text>
+                </View>
 
-                  <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    {lateFeeAmount > 0 ? (
-                      <>
-                        <Pressable
-                          onPress={isWaived ? handleUnwaive : () => setShowWaiveModal(true)}
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {lateFeeAmount > 0 ? (
+                    <>
+                      <Pressable
+                        onPress={isWaived ? handleUnwaive : () => setShowWaiveModal(true)}
+                        style={{
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}>
+                        <Text
                           style={{
-                            paddingHorizontal: spacing.sm,
-                            paddingVertical: 3,
-                            borderRadius: radii.pill,
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.line,
+                            color: colors.ink,
+                            fontFamily: typography.bodySemiBoldFont,
+                            fontSize: 12,
                           }}>
-                          <Text
-                            style={{
-                              color: colors.ink,
-                              fontFamily: typography.bodySemiBoldFont,
-                              fontSize: 11,
-                            }}>
-                            {isWaived ? 'Restore' : 'Waive'}
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={handleClearLateFee}
+                          {isWaived ? 'Restore' : 'Waive'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={handleClearLateFee}
+                        style={{
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}>
+                        <Text
                           style={{
-                            paddingHorizontal: spacing.sm,
-                            paddingVertical: 3,
-                            borderRadius: radii.pill,
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.line,
+                            color: colors.unpaid,
+                            fontFamily: typography.bodySemiBoldFont,
+                            fontSize: 12,
                           }}>
-                          <Text
-                            style={{
-                              color: colors.unpaid,
-                              fontFamily: typography.bodySemiBoldFont,
-                              fontSize: 11,
-                            }}>
-                            Clear
-                          </Text>
-                        </Pressable>
-                      </>
-                    ) : (
-                      <>
-                        <Pressable
-                          onPress={handleApplyLateFee}
+                          Clear
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      <Pressable
+                        onPress={handleApplyLateFee}
+                        style={{
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}>
+                        <Text
                           style={{
-                            paddingHorizontal: spacing.sm,
-                            paddingVertical: 3,
-                            borderRadius: radii.pill,
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.line,
+                            color: colors.accentText,
+                            fontFamily: typography.bodySemiBoldFont,
+                            fontSize: 12,
                           }}>
-                          <Text
-                            style={{
-                              color: colors.accentText,
-                              fontFamily: typography.bodySemiBoldFont,
-                              fontSize: 11,
-                            }}>
-                            Apply Fee
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setShowWaiveModal(true)}
+                          Apply fee
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setShowWaiveModal(true)}
+                        style={{
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                        }}>
+                        <Text
                           style={{
-                            paddingHorizontal: spacing.sm,
-                            paddingVertical: 3,
-                            borderRadius: radii.pill,
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.line,
+                            color: colors.ink,
+                            fontFamily: typography.bodySemiBoldFont,
+                            fontSize: 12,
                           }}>
-                          <Text
-                            style={{
-                              color: colors.ink,
-                              fontFamily: typography.bodySemiBoldFont,
-                              fontSize: 11,
-                            }}>
-                            Waive
-                          </Text>
-                        </Pressable>
-                      </>
-                    )}
-                  </View>
+                          Waive
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
                 </View>
               </View>
-            )}
+            </View>
 
             {/* Toggle Quick Mark vs Part Payment */}
-            <View style={[styles.modeTabs, { backgroundColor: colors.bg, borderRadius: radii.pill, marginVertical: 4, height: 38 }]}>
+            <View style={[styles.modeTabs, { backgroundColor: colors.bg, borderRadius: radii.pill, marginVertical: spacing.sm }]}>
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
@@ -621,10 +630,9 @@ function PaymentSheetContent({
                     {
                       color: mode === 'quick' ? colors.ink : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
-                      fontSize: 13,
                     },
                   ]}>
-                  Full Payment
+                  Full payment
                 </Text>
               </Pressable>
               <Pressable
@@ -645,32 +653,31 @@ function PaymentSheetContent({
                     {
                       color: mode === 'part' ? colors.ink : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
-                      fontSize: 13,
                     },
                   ]}>
-                  Part Payment
+                  Part payment
                 </Text>
               </Pressable>
             </View>
 
             {mode === 'quick' ? (
-              <View style={{ marginTop: 6 }}>
+              <View style={{ marginTop: spacing.sm }}>
                 <Button
-                  label={`Mark Fully Paid (${formatNaira(targetAmount)})`}
+                  label={`Mark fully paid (${formatNaira(targetAmount)})`}
                   variant="primary"
                   disabled={saving}
                   onPress={handleQuickMarkPaid}
-                  style={{ width: '100%', minHeight: 46 }}
+                  style={{ width: '100%' }}
                 />
               </View>
             ) : (
-              <View style={{ marginTop: 6 }}>
+              <View style={{ marginTop: spacing.sm }}>
                 <Text
                   style={[
                     styles.inputLabel,
-                    { color: colors.muted, fontFamily: typography.bodyMediumFont, fontSize: 11, marginBottom: 2 },
+                    { color: colors.muted, fontFamily: typography.bodyMediumFont },
                   ]}>
-                  Amount Paid (₦)
+                  Amount paid (₦)
                 </Text>
                 <TextInput
                   value={partAmountInput}
@@ -686,89 +693,134 @@ function PaymentSheetContent({
                       borderColor: colors.line,
                       borderRadius: radii.card,
                       fontFamily: typography.headingFont,
-                      height: 42,
-                      paddingHorizontal: spacing.sm,
                     },
                   ]}
                 />
 
                 <Button
-                  label="Save Part Payment"
+                  label="Save part payment"
                   variant="primary"
                   disabled={saving}
                   onPress={handleSavePartPayment}
-                  style={{ width: '100%', marginTop: 6, minHeight: 46 }}
+                  style={{ width: '100%', marginTop: spacing.md }}
                 />
               </View>
             )}
 
-            {/* Compact Note & Receipt Section */}
-            <View style={{ marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                <TextInput
-                  value={noteInput}
-                  onChangeText={setNoteInput}
-                  placeholder="Organizer note (optional)"
-                  placeholderTextColor={colors.muted}
-                  style={{
-                    flex: 1,
+            {/* Note Section */}
+            <View style={{ marginTop: spacing.base }}>
+              <Text
+                style={[
+                  styles.inputLabel,
+                  { color: colors.muted, fontFamily: typography.bodyMediumFont },
+                ]}>
+                Organizer note (optional)
+              </Text>
+              <TextInput
+                value={noteInput}
+                onChangeText={setNoteInput}
+                placeholder="e.g. Paid cash at shop / Sent via OPay"
+                placeholderTextColor={colors.muted}
+                style={[
+                  styles.noteInput,
+                  {
                     backgroundColor: colors.bg,
                     color: colors.ink,
                     borderColor: colors.line,
-                    borderWidth: 1,
                     borderRadius: radii.card,
                     fontFamily: typography.bodyFont,
-                    fontSize: 12,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 6,
-                    height: 38,
-                  }}
-                />
-                {receiptUri ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Image source={{ uri: receiptUri }} style={{ width: 36, height: 36, borderRadius: radii.card }} />
-                    <Pressable onPress={() => setReceiptUri(null)} style={{ padding: 4 }}>
-                      <Text style={{ color: colors.unpaid, fontSize: 11, fontFamily: typography.bodyMediumFont }}>Remove</Text>
+                  },
+                ]}
+              />
+            </View>
+
+            {/* Receipt Section */}
+            <View style={{ marginTop: spacing.base }}>
+              <Text
+                style={[
+                  styles.inputLabel,
+                  { color: colors.muted, fontFamily: typography.bodyMediumFont },
+                ]}>
+                Receipt photo
+              </Text>
+              {receiptUri ? (
+                <View
+                  style={[
+                    styles.receiptPreviewContainer,
+                    {
+                      backgroundColor: colors.bg,
+                      borderColor: colors.line,
+                      borderRadius: radii.card,
+                      borderWidth: 1,
+                      padding: spacing.sm,
+                    },
+                  ]}>
+                  <Image source={{ uri: receiptUri }} style={styles.receiptThumb} />
+                  <View style={styles.receiptActions}>
+                    <Text
+                      style={[
+                        styles.receiptSuccessText,
+                        { color: colors.paid, fontFamily: typography.bodySemiBoldFont },
+                      ]}>
+                      Receipt attached
+                    </Text>
+                    <Pressable onPress={() => setReceiptUri(null)}>
+                      <Text
+                        style={[
+                          styles.removeReceiptText,
+                          { color: colors.unpaid, fontFamily: typography.bodyMediumFont },
+                        ]}>
+                        Remove photo
+                      </Text>
                     </Pressable>
                   </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
-                    <Pressable
-                      onPress={handlePickReceipt}
-                      style={{
-                        height: 38,
-                        paddingHorizontal: 8,
+                </View>
+              ) : (
+                <View style={styles.receiptButtonRow}>
+                  <Pressable
+                    onPress={handlePickReceipt}
+                    style={[
+                      styles.receiptBtn,
+                      {
                         backgroundColor: colors.bg,
                         borderColor: colors.line,
-                        borderWidth: 1,
                         borderRadius: radii.card,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}>
-                      <Text style={{ color: colors.ink, fontSize: 11, fontFamily: typography.bodyMediumFont }}>+ Receipt</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={handleTakeReceiptPhoto}
-                      style={{
-                        height: 38,
-                        paddingHorizontal: 8,
+                      },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.receiptBtnText,
+                        { color: colors.ink, fontFamily: typography.bodyMediumFont },
+                      ]}>
+                      + Attach receipt photo
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleTakeReceiptPhoto}
+                    style={[
+                      styles.receiptBtn,
+                      {
                         backgroundColor: colors.bg,
                         borderColor: colors.line,
-                        borderWidth: 1,
                         borderRadius: radii.card,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}>
-                      <Text style={{ color: colors.ink, fontSize: 11, fontFamily: typography.bodyMediumFont }}>Camera</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
+                        marginLeft: spacing.sm,
+                      },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.receiptBtnText,
+                        { color: colors.ink, fontFamily: typography.bodyMediumFont },
+                      ]}>
+                      Camera
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
 
             {/* WhatsApp Integration Button */}
             {onOpenWhatsApp && (
-              <View style={{ marginTop: 8 }}>
+              <View style={{ marginTop: spacing.lg }}>
                 <Pressable
                   onPress={() => onOpenWhatsApp(member, payment)}
                   style={[
@@ -776,17 +828,15 @@ function PaymentSheetContent({
                     {
                       backgroundColor: '#25D366',
                       borderRadius: radii.card,
-                      paddingVertical: 10,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      paddingVertical: spacing.md,
                     },
                   ]}>
                   <Text
                     style={[
                       styles.waButtonText,
-                      { color: '#FFFFFF', fontFamily: typography.headingSemiBoldFont, fontSize: 13 },
+                      { color: '#FFFFFF', fontFamily: typography.headingSemiBoldFont },
                     ]}>
-                    Send WhatsApp {isPaid ? 'Receipt' : 'Reminder'}
+                    Send WhatsApp {isPaid ? 'receipt' : 'reminder'}
                   </Text>
                 </Pressable>
               </View>
@@ -794,12 +844,12 @@ function PaymentSheetContent({
 
             {/* Reset to Unpaid */}
             {payment.amount > 0 && (
-              <View style={{ marginTop: 6, alignItems: 'center' }}>
-                <Pressable onPress={() => setShowResetModal(true)} style={{ padding: 4 }}>
+              <View style={{ marginTop: spacing.base, alignItems: 'center' }}>
+                <Pressable onPress={() => setShowResetModal(true)} style={{ padding: spacing.sm }}>
                   <Text
                     style={[
                       styles.resetText,
-                      { color: colors.unpaid, fontFamily: typography.bodyMediumFont, fontSize: 12 },
+                      { color: colors.unpaid, fontFamily: typography.bodyMediumFont },
                     ]}>
                     Reset payment back to unpaid
                   </Text>
@@ -957,11 +1007,11 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '94%',
+    maxHeight: '92%',
   },
   handleContainer: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   handle: {
     width: 38,

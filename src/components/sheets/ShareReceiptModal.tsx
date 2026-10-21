@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { ShareIntentFile } from 'expo-share-intent';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,7 @@ export function ShareReceiptModal({
   onPaymentRecorded,
 }: ShareReceiptModalProps) {
   const { colors, typography, radii, spacing, isDark, formatNaira } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -218,7 +220,14 @@ export function ShareReceiptModal({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: colors.surface }]}>
         {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.line }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: colors.line,
+              paddingTop: Math.max(insets.top, 16),
+            },
+          ]}>
           <Pressable onPress={onClose} style={styles.headerBtn}>
             <Text style={{ color: colors.muted, fontFamily: typography.bodyMediumFont, fontSize: 15 }}>
               Cancel
@@ -540,7 +549,15 @@ export function ShareReceiptModal({
 
         {/* Footer Confirm */}
         {allGroups.length > 0 && (
-          <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.line }]}>
+          <View
+            style={[
+              styles.footer,
+              {
+                backgroundColor: colors.surface,
+                borderTopColor: colors.line,
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
+            ]}>
             <Button
               label={saving ? 'Recording payment...' : 'Record payment'}
               variant="primary"
@@ -564,7 +581,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingBottom: 14,
     borderBottomWidth: 1,
   },
   headerBtn: {
