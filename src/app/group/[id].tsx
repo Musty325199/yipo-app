@@ -560,15 +560,14 @@ export default function GroupRoundScreen() {
                   opacity: pressed ? 0.75 : 1,
                 },
               ]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: spacing.sm }}>
                 <Text
                   numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
                   style={{
                     color: colors.ink,
                     fontFamily: typography.headingSemiBoldFont,
                     fontSize: 14,
+                    flexShrink: 1,
                   }}>
                   Export Statement
                 </Text>
@@ -577,10 +576,10 @@ export default function GroupRoundScreen() {
               <Text
                 style={{
                   color: colors.accentText,
-                  fontFamily: typography.bodyMediumFont,
-                  fontSize: 13,
+                  fontFamily: typography.headingSemiBoldFont,
+                  fontSize: 16,
                 }}>
-                PDF →
+                →
               </Text>
             </Pressable>
 
@@ -596,27 +595,26 @@ export default function GroupRoundScreen() {
                   opacity: pressed ? 0.75 : 1,
                 },
               ]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: spacing.sm }}>
                 <Text
                   numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
                   style={{
                     color: colors.ink,
                     fontFamily: typography.headingSemiBoldFont,
                     fontSize: 14,
+                    flexShrink: 1,
                   }}>
-                  Bulk Reminders ({unpaidCount} unpaid)
+                  Bulk Reminders ({unpaidCount})
                 </Text>
                 <PlusBadge />
               </View>
               <Text
                 style={{
                   color: colors.accentText,
-                  fontFamily: typography.bodyMediumFont,
-                  fontSize: 13,
+                  fontFamily: typography.headingSemiBoldFont,
+                  fontSize: 16,
                 }}>
-                Queue →
+                →
               </Text>
             </Pressable>
           </View>

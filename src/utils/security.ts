@@ -23,9 +23,10 @@ export async function authenticateWithBiometrics(
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage,
-      fallbackLabel: 'Use PIN',
+      fallbackLabel: 'Use Phone PIN or Password',
       cancelLabel: 'Cancel',
       disableDeviceFallback: false,
+      biometricsSecurityLevel: 'weak',
     });
     return result.success;
   } catch {

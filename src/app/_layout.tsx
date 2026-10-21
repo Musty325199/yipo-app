@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -45,10 +45,18 @@ export default function RootLayout() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockCheckDone, setLockCheckDone] = useState(false);
 
+  const lastUnlockedAtRef = useRef<number>(0);
+  const backgroundAtRef = useRef<number>(0);
+  const isLockedRef = useRef(false);
+
+  useEffect(() => {
+    isLockedRef.current = isLocked;
+  }, [isLocked]);
+
   useEffect(() => {
     setupNotificationChannels().catch(() => {});
 
-    // Initial check
+    // Initial launch check (cold start)
     (async () => {
       const lockEnabled = await isAppLockEnabled();
       if (lockEnabled) {
@@ -57,13 +65,30 @@ export default function RootLayout() {
       setLockCheckDone(true);
     })();
 
-    // Foreground listener: lock again when app returns from background
+    // Standard mobile session management: lock only when returning from being away
     const subscription = AppState.addEventListener('change', async (nextState) => {
-      if (nextState === 'active') {
-        const lockEnabled = await isAppLockEnabled();
-        if (lockEnabled) {
-          setIsLocked(true);
+      if (nextState === 'background') {
+        backgroundAtRef.current = Date.now();
+      } else if (nextState === 'active') {
+        // 1. If unlocked within the last 6 seconds, this 'active' event is the biometric prompt closing
+        if (Date.now() - lastUnlockedAtRef.current < 6000) {
+          return;
         }
+
+        // 2. If already locked, do not re-lock
+        if (isLockedRef.current) {
+          return;
+        }
+
+        // 3. Only lock if the user actually switched away from the app for more than 45 seconds (standard security timeout)
+        const awayMs = backgroundAtRef.current > 0 ? Date.now() - backgroundAtRef.current : 0;
+        if (awayMs >= 45000) {
+          const lockEnabled = await isAppLockEnabled();
+          if (lockEnabled) {
+            setIsLocked(true);
+          }
+        }
+        backgroundAtRef.current = 0;
       }
     });
 
@@ -71,6 +96,11 @@ export default function RootLayout() {
       subscription.remove();
     };
   }, []);
+
+  const handleUnlocked = () => {
+    lastUnlockedAtRef.current = Date.now();
+    setIsLocked(false);
+  };
 
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_600SemiBold,
@@ -91,7 +121,7 @@ export default function RootLayout() {
     <ThemeProvider>
       {canShowContent && <RootContent />}
       {isLocked && splashAnimationDone && (
-        <LockScreen visible={isLocked} onUnlocked={() => setIsLocked(false)} />
+        <LockScreen visible={isLocked} onUnlocked={handleUnlocked} />
       )}
       {!splashAnimationDone && (
         <AnimatedSplash

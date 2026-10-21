@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -24,18 +24,20 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
   const [pinMode, setPinMode] = useState(false);
   const [enteredPin, setEnteredPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const promptTriggeredRef = useRef(false);
 
-  // Automatically prompt for fingerprint/biometrics as soon as lock screen mounts
+  // Automatically prompt for fingerprint/biometrics once when lock screen mounts
   useEffect(() => {
     let isMounted = true;
-    if (visible) {
-      authenticateWithBiometrics('Unlock Yípo Record Book').then((success) => {
+    if (visible && !promptTriggeredRef.current) {
+      promptTriggeredRef.current = true;
+      authenticateWithBiometrics('Unlock Yípo with Fingerprint or Phone PIN').then((success) => {
         if (!isMounted) return;
         if (success) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           onUnlocked();
         } else {
-          setErrorMsg('Biometric not recognized. Tap below to retry or use PIN.');
+          setErrorMsg('Biometric not recognized. Tap below to unlock with your phone PIN or fingerprint.');
         }
       });
     }
@@ -46,13 +48,13 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
 
   const handleBiometricAuth = async () => {
     setErrorMsg('');
-    const success = await authenticateWithBiometrics('Unlock Yípo Record Book');
+    const success = await authenticateWithBiometrics('Unlock Yípo with Fingerprint or Phone PIN');
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onUnlocked();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setErrorMsg('Biometric not recognized. Tap below to retry or use PIN.');
+      setErrorMsg('Not recognized. Tap below to retry with your phone PIN or fingerprint.');
     }
   };
 
@@ -115,10 +117,10 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
           {!pinMode ? (
             <View style={styles.actionContainer}>
               <Button
-                label="Unlock with Biometrics"
+                label="Unlock with Phone PIN or Fingerprint"
                 variant="primary"
                 onPress={handleBiometricAuth}
-                style={{ width: 240 }}
+                style={{ width: '100%', maxWidth: 320 }}
               />
               <Pressable
                 onPress={() => {
@@ -131,7 +133,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                     styles.pinSwitchText,
                     { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
                   ]}>
-                  Use Passcode / PIN instead
+                  Use custom Yípo PIN instead
                 </Text>
               </Pressable>
             </View>
@@ -175,7 +177,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                     styles.pinSwitchText,
                     { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
                   ]}>
-                  Switch to Biometrics
+                  Switch to Phone PIN / Fingerprint
                 </Text>
               </Pressable>
             </View>
