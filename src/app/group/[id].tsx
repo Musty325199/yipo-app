@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import * as Linking from 'expo-linking';
 import { useTheme } from '@/context/ThemeContext';
 import { ResponsiveContainer } from '@/components/layout/ResponsiveContainer';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,13 @@ import {
 import { GroupRecord, MemberRecord, RoundRecord, PaymentRecord } from '@/db/schema';
 import { RoundRing } from '@/components/ring/RoundRing';
 import { PaymentBottomSheet } from '@/components/sheets/PaymentBottomSheet';
+import { WhatsAppReminderModal } from '@/components/sheets/WhatsAppReminderModal';
+import {
+  buildReceiptMessage,
+  buildGroupSummaryMessage,
+  sendWhatsAppOrShare,
+} from '@/utils/whatsapp';
+import { scheduleRoundNotification } from '@/utils/notifications';
 
 export default function GroupRoundScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -48,6 +54,12 @@ export default function GroupRoundScreen() {
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [advancing, setAdvancing] = useState(false);
 
+  // WhatsApp Tone Selector Modal for Reminders
+  const [reminderModalMember, setReminderModalMember] = useState<{
+    member: MemberRecord;
+    amountDue: string;
+  } | null>(null);
+
   const loadData = useCallback(async () => {
     if (!id) return;
     try {
@@ -66,7 +78,21 @@ export default function GroupRoundScreen() {
       if (!id) return;
       try {
         const result = await getGroupDetails(id);
-        if (isMounted) setData(result);
+        if (isMounted) {
+          setData(result);
+          if (result && result.currentRound && result.group.status === 'active') {
+            const collector = result.members.find(
+              (m) => m.id === result.currentRound?.collector_member_id
+            );
+            scheduleRoundNotification({
+              groupId: result.group.id,
+              groupName: result.group.name,
+              roundNumber: result.group.current_round,
+              dueDateISO: result.currentRound.due_date,
+              collectorName: collector?.name || 'Collector',
+            }).catch(() => {});
+          }
+        }
       } catch {
         if (isMounted) setData(null);
       } finally {
@@ -140,26 +166,71 @@ export default function GroupRoundScreen() {
     );
   };
 
-  const handleOpenWhatsApp = (member: MemberRecord, payment: PaymentRecord) => {
+  const handleOpenWhatsApp = async (member: MemberRecord, payment: PaymentRecord) => {
     if (!data) return;
     const isPaid = payment.status === 'paid';
     const amountDue = payment.target_amount - payment.amount;
 
-    let message = '';
     if (isPaid) {
-      message = `Hello ${member.name}, confirming receipt of your ${formatNaira(
-        payment.amount
-      )} contribution for "${data.group.name}" Round ${data.group.current_round}. Thank you! - Yípo Record Book`;
+      // Send official formatted receipt directly
+      const currentCollector = data.members.find(
+        (m) => m.id === data.currentRound?.collector_member_id
+      );
+      const receipt = buildReceiptMessage({
+        memberName: member.name,
+        groupName: data.group.name,
+        roundNumber: data.group.current_round,
+        amountPaid: formatNaira(payment.amount),
+        collectorName: currentCollector?.name || 'Assigned Collector',
+      });
+      await sendWhatsAppOrShare(member.phone, receipt);
     } else {
-      message = `Hello ${member.name}, friendly reminder that your ${formatNaira(
-        amountDue
-      )} contribution for "${data.group.name}" Round ${data.group.current_round} is due. Thank you! - Yípo Record Book`;
+      // Open tone selector modal (Friendly, Firm, Urgent)
+      setReminderModalMember({
+        member,
+        amountDue: formatNaira(amountDue),
+      });
     }
+  };
 
-    const url = `https://wa.me/${member.phone}?text=${encodeURIComponent(message)}`;
-    Linking.openURL(url).catch(() => {
-      Alert.alert('WhatsApp Error', 'Could not open WhatsApp on this device.');
+  const handleShareGroupSummary = async () => {
+    if (!data || !data.currentRound) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const paidMembers = data.payments
+      .filter((p) => p.status === 'paid')
+      .map((p) => p.member_name);
+
+    const unpaidMembers = data.payments
+      .filter((p) => p.status !== 'paid')
+      .map((p) => ({
+        name: p.member_name,
+        due: formatNaira(p.target_amount - p.amount),
+      }));
+
+    const currentCollector = data.members.find(
+      (m) => m.id === data.currentRound?.collector_member_id
+    );
+
+    const nextRoundNumber = data.group.current_round + 1;
+    const nextRound = data.rounds.find((r) => r.round_number === nextRoundNumber);
+    const nextCollector = nextRound
+      ? data.members.find((m) => m.id === nextRound.collector_member_id)?.name
+      : undefined;
+
+    const summary = buildGroupSummaryMessage({
+      groupName: data.group.name,
+      roundNumber: data.group.current_round,
+      totalRounds: data.group.total_rounds,
+      collectorName: currentCollector?.name || 'Collector',
+      targetPot: formatNaira(data.currentRound.target_amount),
+      collectedPot: formatNaira(data.currentRound.collected_amount),
+      paidMembers,
+      unpaidMembers,
+      nextCollectorName: nextCollector,
     });
+
+    await sendWhatsAppOrShare(null, summary);
   };
 
   if (loading || !data) {
@@ -386,6 +457,16 @@ export default function GroupRoundScreen() {
               />
             </View>
           )}
+
+          {/* Share WhatsApp Group Summary Button */}
+          <View style={{ marginTop: spacing.sm }}>
+            <Button
+              label="Share WhatsApp Group Summary"
+              variant="secondary"
+              onPress={handleShareGroupSummary}
+              style={{ width: '100%' }}
+            />
+          </View>
         </View>
 
         {/* Members Payment Records List */}
@@ -614,6 +695,20 @@ export default function GroupRoundScreen() {
           </View>
         </View>
       </Modal>
+      {/* WhatsApp Reminder Tone Selector Modal */}
+      {reminderModalMember && (
+        <WhatsAppReminderModal
+          visible={!!reminderModalMember}
+          memberName={reminderModalMember.member.name}
+          phone={reminderModalMember.member.phone}
+          groupName={group.name}
+          roundNumber={group.current_round}
+          amountDue={reminderModalMember.amountDue}
+          dueDate={currentRound?.due_date}
+          collectorName={currentCollector?.name || 'Assigned Collector'}
+          onClose={() => setReminderModalMember(null)}
+        />
+      )}
     </ResponsiveContainer>
   );
 }

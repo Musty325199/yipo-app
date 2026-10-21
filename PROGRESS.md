@@ -43,7 +43,18 @@
   - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
 - **Known Bugs**: None.
 
-### [ ] Stage 4: WhatsApp Reminders, Summary, Receipts, Notifications
+### [x] Stage 4: WhatsApp Reminders, Summary, Receipts, Notifications
+- **Finished**:
+  - WhatsApp click-to-chat deep-linking (`src/utils/whatsapp.ts`) with fallback to native system share sheet.
+  - Three customizable reminder tones: Friendly 😊, Firm 📌, and Urgent ⚠️.
+  - Interactive WhatsApp Reminder bottom sheet modal (`WhatsAppReminderModal.tsx`) with tone selector and live text editor.
+  - Formatted payment receipt text generation for recorded contributions.
+  - Comprehensive WhatsApp Group Chat Summary generator (payout target, collector, paid list, pending list, next collector).
+  - Local push notifications system via `expo-notifications` (`src/utils/notifications.ts`): channel setup on Android, scheduled morning due-date reminders, permission management.
+  - All checks passed: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20).
+- **Known Bugs**: None.
+
+### [ ] Stage 5: Swap Turns, Reliability Record, Calendar, History
 ### [ ] Stage 5: Swap Turns, Reliability Record, Calendar, History
 ### [ ] Stage 6: App Lock, Backup, CSV, Settings
 ### [ ] Stage 7: Polish, Accessibility, Performance Pass, Final APK Build

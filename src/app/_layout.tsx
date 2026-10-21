@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +15,7 @@ import {
 } from '@expo-google-fonts/instrument-sans';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { AnimatedSplash } from '@/components/splash/AnimatedSplash';
+import { setupNotificationChannels } from '@/utils/notifications';
 
 // Keep splash visible until fonts are loaded and ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -39,6 +40,10 @@ function RootContent() {
 
 export default function RootLayout() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
+
+  useEffect(() => {
+    setupNotificationChannels().catch(() => {});
+  }, []);
 
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_600SemiBold,

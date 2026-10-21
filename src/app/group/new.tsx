@@ -20,6 +20,7 @@ import { normalizeNigerianPhone, formatPhoneForDisplay } from '@/utils/phone';
 import { createGroup } from '@/db/queries';
 import { DrawOrderModal, DraftMember } from '@/components/ring/DrawOrderModal';
 import { Frequency } from '@/db/schema';
+import { scheduleRoundNotification } from '@/utils/notifications';
 
 export default function NewGroupScreen() {
   const { colors, typography, spacing, radii, isDark, formatNaira } = useTheme();
@@ -143,11 +144,12 @@ export default function NewGroupScreen() {
     setIsSaving(true);
     try {
       const amount = parseInt(amountStr.replace(/[^0-9]/g, ''), 10);
+      const startDate = new Date().toISOString();
       const groupId = await createGroup({
         name: groupName.trim(),
         contribution_amount: amount,
         frequency,
-        start_date: new Date().toISOString(),
+        start_date: startDate,
         members: members.map((m) => ({
           name: m.name,
           phone: m.phone,
@@ -156,6 +158,16 @@ export default function NewGroupScreen() {
           turn_order: m.turn_order,
         })),
       });
+
+      // Schedule due date reminder for Round 1
+      const collector = members.find((m) => m.turn_order === 1);
+      scheduleRoundNotification({
+        groupId,
+        groupName: groupName.trim(),
+        roundNumber: 1,
+        dueDateISO: startDate,
+        collectorName: collector?.name || 'Collector',
+      }).catch(() => {});
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Navigate to the round screen for this group
