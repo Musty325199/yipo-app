@@ -8,6 +8,7 @@ import {
   Frequency,
 } from './schema';
 import { calculateDueDates, getNowISO } from '@/utils/dates';
+import { computeLateFee } from '@/utils/lateFees';
 
 export interface CreateMemberInput {
   name: string;
@@ -22,6 +23,9 @@ export interface CreateGroupInput {
   contribution_amount: number; // integer (naira)
   frequency: Frequency;
   start_date: string; // ISO
+  late_fee_type?: 'none' | 'fixed' | 'percentage';
+  late_fee_value?: number;
+  late_fee_grace_days?: number;
   members: CreateMemberInput[];
 }
 
@@ -54,8 +58,8 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
   await db.withTransactionAsync(async () => {
     // 1. Insert Group
     await db.runAsync(
-      `INSERT INTO groups (id, name, contribution_amount, frequency, start_date, total_rounds, current_round, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, 'active', ?, ?);`,
+      `INSERT INTO groups (id, name, contribution_amount, frequency, start_date, total_rounds, current_round, status, late_fee_type, late_fee_value, late_fee_grace_days, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, 'active', ?, ?, ?, ?, ?);`,
       [
         groupId,
         input.name.trim(),
@@ -63,6 +67,9 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
         input.frequency,
         input.start_date,
         totalRounds,
+        input.late_fee_type || 'none',
+        input.late_fee_value || 0,
+        input.late_fee_grace_days || 0,
         now,
         now,
       ]
@@ -280,6 +287,33 @@ export async function recordPayment(input: {
 
     const paidAt = input.status === 'unpaid' ? null : now;
 
+    // Check late fee logic (applied once per member per round)
+    let lateFeeAmount = currentPayment.late_fee_amount || 0;
+    let lateFeeWaived = currentPayment.late_fee_waived || 0;
+    let lateFeeWaivedReason = currentPayment.late_fee_waived_reason || null;
+
+    if (input.status === 'unpaid') {
+      lateFeeAmount = 0;
+      lateFeeWaived = 0;
+      lateFeeWaivedReason = null;
+    } else if (lateFeeAmount === 0 && lateFeeWaived === 0) {
+      // First time recording payment for this round
+      const round = await db.getFirstAsync<RoundRecord>(
+        `SELECT due_date FROM rounds WHERE id = ?;`,
+        [currentPayment.round_id]
+      );
+      const group = await db.getFirstAsync<GroupRecord>(
+        `SELECT late_fee_type, late_fee_value, late_fee_grace_days, contribution_amount FROM groups WHERE id = ?;`,
+        [currentPayment.group_id]
+      );
+      if (round && group) {
+        const feeCalc = computeLateFee(group, round.due_date, now);
+        if (feeCalc.isLate && feeCalc.amount > 0) {
+          lateFeeAmount = feeCalc.amount;
+        }
+      }
+    }
+
     // 2. Update payment row
     await db.runAsync(
       `UPDATE payments
@@ -287,7 +321,10 @@ export async function recordPayment(input: {
            status = ?,
            paid_at = ?,
            receipt_image_uri = ?,
-           note = ?
+           note = ?,
+           late_fee_amount = ?,
+           late_fee_waived = ?,
+           late_fee_waived_reason = ?
        WHERE id = ?;`,
       [
         input.amount,
@@ -295,6 +332,9 @@ export async function recordPayment(input: {
         paidAt,
         input.receiptImageUri ?? null,
         input.note?.trim() ?? null,
+        lateFeeAmount,
+        lateFeeWaived,
+        lateFeeWaivedReason,
         input.paymentId,
       ]
     );
@@ -311,6 +351,153 @@ export async function recordPayment(input: {
       [newCollected, currentPayment.round_id]
     );
   });
+}
+
+/**
+ * Waive late fee for a payment with a mandatory reason.
+ * Preserves the fee amount in database history.
+ */
+export async function waiveLateFee(paymentId: string, reason: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE payments
+     SET late_fee_waived = 1,
+         late_fee_waived_reason = ?
+     WHERE id = ?;`,
+    [reason.trim(), paymentId]
+  );
+}
+
+/**
+ * Remove waiver and restore original late fee.
+ */
+export async function unwaiveLateFee(paymentId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE payments
+     SET late_fee_waived = 0,
+         late_fee_waived_reason = NULL
+     WHERE id = ?;`,
+    [paymentId]
+  );
+}
+
+/**
+ * Mark payment as reminded (timestamp recorded when WhatsApp was opened).
+ */
+export async function setPaymentReminded(paymentId: string, remindedAt?: string): Promise<void> {
+  const db = await getDb();
+  const time = remindedAt || getNowISO();
+  await db.runAsync(
+    `UPDATE payments SET reminded_at = ? WHERE id = ?;`,
+    [time, paymentId]
+  );
+}
+
+/**
+ * Move payment back to pending queue.
+ */
+export async function clearPaymentReminded(paymentId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE payments SET reminded_at = NULL WHERE id = ?;`,
+    [paymentId]
+  );
+}
+
+export interface ReminderQueueItem {
+  paymentId: string;
+  groupId: string;
+  groupName: string;
+  roundId: string;
+  roundNumber: number;
+  totalRounds: number;
+  dueDate: string;
+  collectorName: string;
+  memberId: string;
+  memberName: string;
+  memberPhone: string;
+  formattedPhone: string;
+  turnOrder: number;
+  amountPaid: number;
+  targetAmount: number;
+  remainingDue: number;
+  status: 'unpaid' | 'part_paid';
+  lateFeeAmount: number;
+  lateFeeWaived: boolean;
+  lateFeeWaivedReason?: string | null;
+  remindedAt: string | null;
+}
+
+/**
+ * Fetch list of all unpaid / part-paid members in active groups (or specific group)
+ * for the bulk reminder queue.
+ */
+export async function getUnpaidReminderQueue(groupId?: string): Promise<ReminderQueueItem[]> {
+  const db = await getDb();
+
+  const sql = `
+    SELECT 
+      p.id as payment_id,
+      p.group_id,
+      g.name as group_name,
+      p.round_id,
+      r.round_number,
+      g.total_rounds,
+      r.due_date,
+      col.name as collector_name,
+      m.id as member_id,
+      m.name as member_name,
+      m.phone as member_phone,
+      m.formatted_phone,
+      m.turn_order,
+      p.amount as amount_paid,
+      p.target_amount,
+      (p.target_amount - p.amount) as remaining_due,
+      p.status,
+      p.late_fee_amount,
+      p.late_fee_waived,
+      p.late_fee_waived_reason,
+      p.reminded_at
+    FROM payments p
+    JOIN groups g ON p.group_id = g.id
+    JOIN rounds r ON p.round_id = r.id
+    JOIN members m ON p.member_id = m.id
+    JOIN members col ON r.collector_member_id = col.id
+    WHERE g.status = 'active'
+      AND r.round_number = g.current_round
+      AND p.status IN ('unpaid', 'part_paid')
+      ${groupId ? 'AND g.id = ?' : ''}
+    ORDER BY r.due_date ASC, m.turn_order ASC;
+  `;
+
+  const rows = groupId
+    ? await db.getAllAsync<any>(sql, [groupId])
+    : await db.getAllAsync<any>(sql);
+
+  return rows.map((r) => ({
+    paymentId: r.payment_id,
+    groupId: r.group_id,
+    groupName: r.group_name,
+    roundId: r.round_id,
+    roundNumber: r.round_number,
+    totalRounds: r.total_rounds,
+    dueDate: r.due_date,
+    collectorName: r.collector_name,
+    memberId: r.member_id,
+    memberName: r.member_name,
+    memberPhone: r.member_phone,
+    formattedPhone: r.formatted_phone,
+    turnOrder: r.turn_order,
+    amountPaid: r.amount_paid,
+    targetAmount: r.target_amount,
+    remainingDue: r.remaining_due,
+    status: r.status as 'unpaid' | 'part_paid',
+    lateFeeAmount: r.late_fee_amount || 0,
+    lateFeeWaived: Boolean(r.late_fee_waived),
+    lateFeeWaivedReason: r.late_fee_waived_reason,
+    remindedAt: r.reminded_at,
+  }));
 }
 
 /**
@@ -484,6 +671,9 @@ export interface MemberProfileData {
     dueDate: string;
     receiptUri: string | null;
     note: string | null;
+    lateFeeAmount?: number;
+    lateFeeWaived?: boolean;
+    lateFeeWaivedReason?: string | null;
   }[];
   swaps: {
     id: string;
@@ -524,8 +714,12 @@ export async function getMemberReliabilityProfile(
     due_date: string;
     receipt_image_uri: string | null;
     note: string | null;
+    late_fee_amount: number | null;
+    late_fee_waived: number | null;
+    late_fee_waived_reason: string | null;
   }>(
-    `SELECT p.id, p.amount, p.target_amount, p.status, p.paid_at, r.round_number, r.due_date, p.receipt_image_uri, p.note
+    `SELECT p.id, p.amount, p.target_amount, p.status, p.paid_at, r.round_number, r.due_date, p.receipt_image_uri, p.note,
+            p.late_fee_amount, p.late_fee_waived, p.late_fee_waived_reason
      FROM payments p
      JOIN rounds r ON p.round_id = r.id
      WHERE p.member_id = ?
@@ -612,6 +806,9 @@ export async function getMemberReliabilityProfile(
       dueDate: p.due_date,
       receiptUri: p.receipt_image_uri,
       note: p.note,
+      lateFeeAmount: p.late_fee_amount || 0,
+      lateFeeWaived: Boolean(p.late_fee_waived),
+      lateFeeWaivedReason: p.late_fee_waived_reason,
     })),
     swaps,
   };

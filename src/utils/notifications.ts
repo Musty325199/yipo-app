@@ -77,7 +77,7 @@ export async function scheduleRoundNotification({
 
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: `💰 ${groupName} — Round ${roundNumber} Due Today!`,
+        title: `${groupName} — Round ${roundNumber} Due Today!`,
         body: `Payout pot goes to ${collectorName}. Open Yípo to track contributions and send reminders.`,
         data: { groupId, roundNumber },
       },

@@ -427,7 +427,7 @@ export default function MemberProfileScreen() {
                           fontFamily: typography.bodyMediumFont,
                         },
                       ]}>
-                      {isPaid ? '✓ Paid' : isPartPaid ? 'Part Paid' : 'Unpaid'}
+                      {isPaid ? 'Paid' : isPartPaid ? 'Part Paid' : 'Unpaid'}
                     </Text>
                   </View>
                 </View>

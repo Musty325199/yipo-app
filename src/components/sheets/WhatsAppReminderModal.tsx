@@ -19,6 +19,7 @@ import {
   buildReminderMessage,
   sendWhatsAppOrShare,
 } from '@/utils/whatsapp';
+import { setPaymentReminded } from '@/db/queries';
 
 interface WhatsAppReminderModalProps {
   visible: boolean;
@@ -29,6 +30,9 @@ interface WhatsAppReminderModalProps {
   amountDue: string;
   dueDate?: string;
   collectorName: string;
+  lateFeeNotice?: string;
+  paymentId?: string;
+  onSent?: () => void;
   onClose: () => void;
 }
 
@@ -41,6 +45,9 @@ export function WhatsAppReminderModal({
   amountDue,
   dueDate,
   collectorName,
+  lateFeeNotice,
+  paymentId,
+  onSent,
   onClose,
 }: WhatsAppReminderModalProps) {
   const { colors, typography, spacing, radii, isDark } = useTheme();
@@ -55,6 +62,7 @@ export function WhatsAppReminderModal({
       amountDue,
       dueDate,
       collectorName,
+      lateFeeNotice,
     })
   );
 
@@ -69,13 +77,18 @@ export function WhatsAppReminderModal({
       amountDue,
       dueDate,
       collectorName,
+      lateFeeNotice,
     });
     setCustomText(newText);
   };
 
   const handleSend = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await sendWhatsAppOrShare(phone, customText);
+    const opened = await sendWhatsAppOrShare(phone, customText);
+    if (opened && paymentId) {
+      await setPaymentReminded(paymentId);
+    }
+    if (onSent) onSent();
     onClose();
   };
 
@@ -147,7 +160,7 @@ export function WhatsAppReminderModal({
                   {
                     backgroundColor: tone === 'friendly' ? colors.accent : colors.bg,
                     borderRadius: radii.pill,
-                    borderColor: colors.line,
+                    borderColor: tone === 'friendly' ? colors.accent : colors.line,
                     borderWidth: 1,
                   },
                 ]}>
@@ -155,11 +168,11 @@ export function WhatsAppReminderModal({
                   style={[
                     styles.toneText,
                     {
-                      color: tone === 'friendly' ? '#0A1C16' : colors.muted,
+                      color: tone === 'friendly' ? colors.accentText : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
                     },
                   ]}>
-                  Friendly 😊
+                  Friendly
                 </Text>
               </Pressable>
 
@@ -168,9 +181,9 @@ export function WhatsAppReminderModal({
                 style={[
                   styles.tonePill,
                   {
-                    backgroundColor: tone === 'firm' ? colors.accent : colors.bg,
+                    backgroundColor: tone === 'firm' ? (isDark ? 'rgba(245, 158, 11, 0.25)' : '#FEF3C7') : colors.bg,
                     borderRadius: radii.pill,
-                    borderColor: colors.line,
+                    borderColor: tone === 'firm' ? colors.accent : colors.line,
                     borderWidth: 1,
                     marginHorizontal: spacing.xs,
                   },
@@ -179,22 +192,22 @@ export function WhatsAppReminderModal({
                   style={[
                     styles.toneText,
                     {
-                      color: tone === 'firm' ? '#0A1C16' : colors.muted,
+                      color: tone === 'firm' ? colors.accentText : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
                     },
                   ]}>
-                  Firm 📌
+                  Firm
                 </Text>
               </Pressable>
 
               <Pressable
-                onPress={() => handleSelectTone('urgent')}
+                onPress={() => handleSelectTone('last_notice')}
                 style={[
                   styles.tonePill,
                   {
-                    backgroundColor: tone === 'urgent' ? colors.unpaid : colors.bg,
+                    backgroundColor: tone === 'last_notice' ? (isDark ? 'rgba(224, 78, 67, 0.25)' : '#FEE2E2') : colors.bg,
                     borderRadius: radii.pill,
-                    borderColor: colors.line,
+                    borderColor: tone === 'last_notice' ? colors.unpaid : colors.line,
                     borderWidth: 1,
                   },
                 ]}>
@@ -202,11 +215,11 @@ export function WhatsAppReminderModal({
                   style={[
                     styles.toneText,
                     {
-                      color: tone === 'urgent' ? '#FFFFFF' : colors.muted,
+                      color: tone === 'last_notice' ? colors.unpaid : colors.muted,
                       fontFamily: typography.bodySemiBoldFont,
                     },
                   ]}>
-                  Urgent ⚠️
+                  Last notice
                 </Text>
               </Pressable>
             </View>

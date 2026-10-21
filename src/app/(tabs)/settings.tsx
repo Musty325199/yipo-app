@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Switch,
+  TextInput,
   Alert,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -18,9 +19,12 @@ import {
   setAppLockEnabled,
   hasBiometricHardware,
   authenticateWithBiometrics,
+  getAppSetting,
+  setAppSetting,
 } from '@/utils/security';
 import { exportJsonBackup, restoreJsonBackup } from '@/utils/backup';
 import { exportAllRecordsToCSV } from '@/utils/csv';
+import { usePlus, PlusBadge } from '@/utils/plus';
 
 export default function SettingsScreen() {
   const {
@@ -33,6 +37,8 @@ export default function SettingsScreen() {
     setThemePreference,
   } = useTheme();
 
+  const { isPlus, togglePlus } = usePlus();
+  const [organizerName, setOrganizerName] = useState('Organizer name');
   const [lockEnabled, setLockEnabled] = useState(false);
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [exportingBackup, setExportingBackup] = useState(false);
@@ -46,8 +52,16 @@ export default function SettingsScreen() {
 
       const bio = await hasBiometricHardware();
       setHasBiometrics(bio);
+
+      const name = await getAppSetting('organizer_name', 'Organizer name');
+      setOrganizerName(name);
     })();
   }, []);
+
+  const handleOrganizerNameChange = (val: string) => {
+    setOrganizerName(val);
+    setAppSetting('organizer_name', val.trim() || 'Organizer name').catch(() => {});
+  };
 
   const handleToggleLock = async (value: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -98,7 +112,7 @@ export default function SettingsScreen() {
               if (res.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 Alert.alert(
-                  'Restore Successful! 🎉',
+                  'Restore Successful!',
                   `Successfully restored ${res.restoredGroupsCount} Ajo group(s).`
                 );
               } else if (res.error !== 'File selection canceled') {
@@ -163,6 +177,159 @@ export default function SettingsScreen() {
             ]}>
             Preferences, security, and offline data backups
           </Text>
+        </View>
+
+        {/* Yípo Plus Section */}
+        <View style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm }}>
+            <Text
+              style={[
+                styles.sectionHeader,
+                { color: colors.muted, fontFamily: typography.bodyMediumFont },
+              ]}>
+              YÍPO PLUS
+            </Text>
+            <PlusBadge />
+          </View>
+
+          <View
+            style={[
+              styles.settingCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: radii.card,
+                borderColor: colors.line,
+                borderWidth: isDark ? 1 : 0,
+                padding: spacing.base,
+              },
+            ]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text
+                    style={[
+                      styles.settingLabel,
+                      { color: colors.ink, fontFamily: typography.headingSemiBoldFont, fontSize: 16 },
+                    ]}>
+                    Launch Edition
+                  </Text>
+                  <View
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5',
+                      borderRadius: radii.pill,
+                    }}>
+                    <Text
+                      style={{
+                        color: colors.paid,
+                        fontFamily: typography.headingSemiBoldFont,
+                        fontSize: 10,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                      }}>
+                      Free during launch
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    color: colors.muted,
+                    fontFamily: typography.bodyFont,
+                    fontSize: 13,
+                    marginTop: 4,
+                  }}>
+                  All premium offline features are fully unlocked for early organizers.
+                </Text>
+              </View>
+
+              <Switch
+                value={isPlus}
+                onValueChange={togglePlus}
+                trackColor={{ false: colors.line, true: colors.accent }}
+                thumbColor={isDark ? colors.surface : '#FFFFFF'}
+              />
+            </View>
+
+            <View
+              style={{
+                marginTop: spacing.md,
+                paddingTop: spacing.md,
+                borderTopWidth: 1,
+                borderTopColor: colors.line,
+                gap: 6,
+              }}>
+              <Text style={{ color: colors.muted, fontFamily: typography.bodyFont, fontSize: 12 }}>
+                • Unlimited active savings groups
+              </Text>
+              <Text style={{ color: colors.muted, fontFamily: typography.bodyFont, fontSize: 12 }}>
+                • Professional A4 PDF statements & receipts
+              </Text>
+              <Text style={{ color: colors.muted, fontFamily: typography.bodyFont, fontSize: 12 }}>
+                • Late fee rules per group with waiver records
+              </Text>
+              <Text style={{ color: colors.muted, fontFamily: typography.bodyFont, fontSize: 12 }}>
+                • Bulk WhatsApp reminder queue
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Organizer Profile Section */}
+        <View style={{ marginBottom: spacing.lg }}>
+          <Text
+            style={[
+              styles.sectionHeader,
+              { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.sm },
+            ]}>
+            ORGANIZER PROFILE
+          </Text>
+
+          <View
+            style={[
+              styles.settingCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: radii.card,
+                borderColor: colors.line,
+                borderWidth: isDark ? 1 : 0,
+                padding: spacing.base,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.settingLabel,
+                { color: colors.ink, fontFamily: typography.bodyMediumFont, marginBottom: 4 },
+              ]}>
+              Organizer name
+            </Text>
+            <Text
+              style={{
+                color: colors.muted,
+                fontFamily: typography.bodyFont,
+                fontSize: 12,
+                marginBottom: spacing.sm,
+              }}>
+              Printed on A4 statement headers and receipts
+            </Text>
+            <TextInput
+              value={organizerName}
+              onChangeText={handleOrganizerNameChange}
+              placeholder="Organizer name"
+              placeholderTextColor={colors.muted}
+              style={{
+                backgroundColor: colors.bg,
+                borderColor: colors.line,
+                borderWidth: 1,
+                borderRadius: radii.card,
+                paddingHorizontal: spacing.base,
+                paddingVertical: spacing.md,
+                color: colors.ink,
+                fontFamily: typography.bodyFont,
+                fontSize: 14,
+              }}
+            />
+          </View>
         </View>
 
         {/* Appearance Section */}

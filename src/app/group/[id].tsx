@@ -30,6 +30,8 @@ import {
   sendWhatsAppOrShare,
 } from '@/utils/whatsapp';
 import { scheduleRoundNotification } from '@/utils/notifications';
+import { exportStatementPdf } from '@/utils/pdf';
+import { PlusBadge } from '@/utils/plus';
 
 export default function GroupRoundScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -139,7 +141,7 @@ export default function GroupRoundScreen() {
 
       if (res.isCompleted) {
         Alert.alert(
-          '🎉 Cycle Completed!',
+          'Cycle Completed!',
           `All ${data.group.total_rounds} rounds of "${data.group.name}" are successfully completed!`
         );
       }
@@ -232,6 +234,7 @@ export default function GroupRoundScreen() {
       paidMembers,
       unpaidMembers,
       nextCollectorName: nextCollector,
+      lateFeesSummary: totalLateFees > 0 ? formatNaira(totalLateFees) : undefined,
     });
 
     await sendWhatsAppOrShare(null, summary);
@@ -261,7 +264,27 @@ export default function GroupRoundScreen() {
   const isGroupCompleted = group.status === 'completed';
 
   const paidCount = payments.filter((p) => p.status === 'paid').length;
+  const unpaidCount = payments.filter((p) => p.status !== 'paid').length;
   const progressPercent = targetPot > 0 ? Math.min(100, Math.round((collectedPot / targetPot) * 100)) : 0;
+
+  const totalLateFees = payments.reduce((acc, p) => {
+    if (p.late_fee_amount && p.late_fee_amount > 0 && !p.late_fee_waived) {
+      return acc + p.late_fee_amount;
+    }
+    return acc;
+  }, 0);
+
+  const handleExportPdf = async () => {
+    if (!currentRound || !currentCollector) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await exportStatementPdf({
+      group,
+      round: currentRound,
+      collector: currentCollector,
+      members,
+      payments,
+    });
+  };
 
   return (
     <ResponsiveContainer>
@@ -474,6 +497,26 @@ export default function GroupRoundScreen() {
             </Text>
           </View>
 
+          {totalLateFees > 0 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: spacing.sm,
+                paddingTop: spacing.xs,
+                borderTopWidth: 1,
+                borderTopColor: colors.line,
+              }}>
+              <Text style={{ color: colors.muted, fontFamily: typography.bodyFont, fontSize: 13 }}>
+                Late fees (kept separate)
+              </Text>
+              <Text style={{ color: colors.accentText, fontFamily: typography.bodySemiBoldFont, fontSize: 13 }}>
+                {formatNaira(totalLateFees)}
+              </Text>
+            </View>
+          )}
+
           {/* Confirm Payout Handover Button */}
           {!isGroupCompleted && (
             <View style={{ marginTop: spacing.base }}>
@@ -493,14 +536,66 @@ export default function GroupRoundScreen() {
             </View>
           )}
 
-          {/* Share WhatsApp Group Summary Button */}
-          <View style={{ marginTop: spacing.sm }}>
+          {/* Action Buttons Row */}
+          <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
             <Button
               label="Share WhatsApp Group Summary"
               variant="secondary"
               onPress={handleShareGroupSummary}
               style={{ width: '100%' }}
             />
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Pressable
+                onPress={handleExportPdf}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: spacing.md,
+                  backgroundColor: colors.surface,
+                  borderRadius: radii.card,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                }}>
+                <Text
+                  style={{
+                    color: colors.ink,
+                    fontFamily: typography.headingSemiBoldFont,
+                    fontSize: 13,
+                  }}>
+                  Export Statement
+                </Text>
+                <PlusBadge />
+              </Pressable>
+
+              <Pressable
+                onPress={() => router.push({ pathname: '/reminders', params: { groupId: group.id } })}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: spacing.md,
+                  backgroundColor: colors.surface,
+                  borderRadius: radii.card,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                }}>
+                <Text
+                  style={{
+                    color: colors.ink,
+                    fontFamily: typography.headingSemiBoldFont,
+                    fontSize: 13,
+                  }}>
+                  Reminders ({unpaidCount})
+                </Text>
+                <PlusBadge />
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -649,8 +744,19 @@ export default function GroupRoundScreen() {
                         fontFamily: typography.bodyFont,
                       },
                     ]}>
-                    {isPaid ? '✓ Paid' : isPartPaid ? 'Part Paid' : 'Unpaid'}
+                    {isPaid ? 'Paid' : isPartPaid ? 'Part Paid' : 'Unpaid'}
                   </Text>
+                  {p.late_fee_amount && p.late_fee_amount > 0 ? (
+                    <Text
+                      style={{
+                        color: p.late_fee_waived ? colors.muted : colors.accentText,
+                        fontSize: 11,
+                        fontFamily: typography.bodyFont,
+                        marginTop: 2,
+                      }}>
+                      {p.late_fee_waived ? 'Fee waived' : `+${formatNaira(p.late_fee_amount)} late`}
+                    </Text>
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -663,6 +769,9 @@ export default function GroupRoundScreen() {
         visible={sheetVisible}
         member={selectedMember}
         payment={selectedPayment}
+        group={group}
+        dueDate={currentRound?.due_date}
+        onRefresh={loadData}
         onClose={() => setSheetVisible(false)}
         onSavePayment={handleSavePayment}
         onOpenWhatsApp={handleOpenWhatsApp}

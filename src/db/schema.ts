@@ -9,6 +9,9 @@ export interface GroupRecord {
   total_rounds: number;
   current_round: number;
   status: 'active' | 'completed' | 'archived';
+  late_fee_type?: 'none' | 'fixed' | 'percentage';
+  late_fee_value?: number;
+  late_fee_grace_days?: number;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +53,10 @@ export interface PaymentRecord {
   paid_at: string | null;
   receipt_image_uri: string | null;
   note: string | null;
+  late_fee_amount?: number;
+  late_fee_waived?: number;
+  late_fee_waived_reason?: string | null;
+  reminded_at?: string | null;
   created_at: string;
 }
 
@@ -159,6 +166,20 @@ export const MIGRATIONS = [
         key TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL
       );
+    `,
+  },
+  {
+    version: 3,
+    name: 'plus_features_late_fees_reminders',
+    up: `
+      ALTER TABLE groups ADD COLUMN late_fee_type TEXT DEFAULT 'none';
+      ALTER TABLE groups ADD COLUMN late_fee_value INTEGER DEFAULT 0;
+      ALTER TABLE groups ADD COLUMN late_fee_grace_days INTEGER DEFAULT 0;
+
+      ALTER TABLE payments ADD COLUMN late_fee_amount INTEGER DEFAULT 0;
+      ALTER TABLE payments ADD COLUMN late_fee_waived INTEGER DEFAULT 0;
+      ALTER TABLE payments ADD COLUMN late_fee_waived_reason TEXT;
+      ALTER TABLE payments ADD COLUMN reminded_at TEXT;
     `,
   },
 ];

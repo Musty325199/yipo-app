@@ -1,7 +1,7 @@
 # Yípo Progress Tracker
 
 ## Status Overview
-- **Current Stage**: Stage 3 (Round Screen, Skia Ring, Payments & Receipts)
+- **Current Stage**: Stage 8: Plus features (Complete & Verified)
 - **Command to Run App**:
   - Preview APK Build: `npx eas-cli build --profile preview --platform android`
   - Dev Client: `npx expo start --dev-client`
@@ -81,4 +81,17 @@
   - Draft persistence for group creation: automatic local saving of entered members and form values with instant restore on reopen.
   - Color & Contrast Overhaul: upgraded to radiant Royal Gold (`#F59E0B` / `#FBBF24`), high-contrast dark amber text tokens (`#B45309`), vivid Jewel Emerald (`#10B981`), and clean porcelain ivory backdrop (`#F8FAF9`) for crisp, non-faded UI.
   - Diagnostics verified: `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors), `npx expo-doctor` (20/20 passed).
+- **Known Bugs**: None.
+
+### [x] Stage 8: Plus Features (Launch Edition — All Unlocked)
+- **Finished**:
+  - Additive SQLite Migration 3: added `late_fee_type`, `late_fee_value`, `late_fee_grace_days` to `groups`, and `late_fee_amount`, `late_fee_waived`, `late_fee_waived_reason`, `reminded_at` to `payments`. Non-destructive to existing installs.
+  - Centralized Plus architecture (`src/utils/plus.tsx`): `usePlus()`, `isPlusUnlocked()`, `setPlusUnlocked()`, and theme-styled `<PlusBadge />` pill tag with high contrast and zero emojis.
+  - Unlimited groups support: group limit enforcement bypassed while `plusUnlocked = true` (standard limit is 2 groups).
+  - Professional A4 PDF Statements (`src/utils/pdf.ts`): built strictly with the Yípo design system using `expo-print` and `expo-sharing`. Fonts **Bricolage Grotesque** and **Instrument Sans** embedded directly as Base64 in `@font-face` for 100% offline generation with zero network dependency. Verified contrast ratios for monochrome and color printing. Title changed to "AJO STATEMENT", with footer "Records only. Yípo does not hold or move money." Neutral placeholders ("Organizer name", "Member name", "SAMPLE").
+  - Late fee policy & automated calculations (`src/utils/lateFees.ts`): fixed or percentage rates with grace periods in days, applied once per member per round, rounded to whole Naira, tracked separately from the pot target ("Late fees (kept separate)"). One-tap waiver with mandatory reason stored in history. Formatted notice: "Late fee: ₦1,000. Paid X days after the grace period ended."
+  - Bulk WhatsApp Reminder Queue (`src/app/reminders.tsx`): dedicated screen listing unpaid members across active groups. Tones: Friendly, Firm, Last notice (zero emojis). Honest status tracking: records "Opened in WhatsApp, [time]" with a "Back to Pending" reversal action. Empty state copy: "No one left to remind." / "Everyone is either paid or already reminded."
+  - Complete emoji removal across the entire app copy, button labels, notifications, and templates (replaced with stroke icons).
+  - Settings Screen enhancements: Yípo Plus launch section ("Launch Edition • Free during launch") and editable Organizer Name setting stored in SQLite `app_settings`.
+  - Diagnostics verified: `npx tsc --noEmit` (0 errors), `npm run lint` (0 errors, 0 warnings), `npx expo-doctor` (20/20 passed).
 - **Known Bugs**: None.

@@ -23,12 +23,16 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
-import { MemberRecord, PaymentRecord } from '@/db/schema';
+import { MemberRecord, PaymentRecord, GroupRecord } from '@/db/schema';
+import { waiveLateFee, unwaiveLateFee } from '@/db/queries';
 
 interface PaymentBottomSheetProps {
   visible: boolean;
   member: MemberRecord | null;
   payment: (PaymentRecord & { member_name: string; member_phone: string; turn_order: number }) | null;
+  group?: GroupRecord;
+  dueDate?: string;
+  onRefresh?: () => void;
   onClose: () => void;
   onSavePayment: (input: {
     paymentId: string;
@@ -63,6 +67,9 @@ function PaymentSheetContent({
   visible,
   member,
   payment,
+  group,
+  dueDate,
+  onRefresh,
   onClose,
   onSavePayment,
   onOpenWhatsApp,
@@ -80,6 +87,54 @@ function PaymentSheetContent({
     payment.receipt_image_uri || null
   );
   const [saving, setSaving] = useState(false);
+
+  // Late fee state
+  const [lateFeeAmount] = useState(payment.late_fee_amount || 0);
+  const [isWaived, setIsWaived] = useState(Boolean(payment.late_fee_waived));
+  const [waivedReason, setWaivedReason] = useState(payment.late_fee_waived_reason || '');
+  const [showWaiveModal, setShowWaiveModal] = useState(false);
+  const [waiveReasonInput, setWaiveReasonInput] = useState('');
+
+  let daysLate = 1;
+  if (dueDate && payment.paid_at) {
+    const dueTime = new Date(dueDate).getTime();
+    const graceMs = (group?.late_fee_grace_days || 0) * 86400000;
+    const paidTime = new Date(payment.paid_at).getTime();
+    if (paidTime > dueTime + graceMs) {
+      daysLate = Math.max(1, Math.ceil((paidTime - (dueTime + graceMs)) / 86400000));
+    }
+  }
+
+  const handleConfirmWaive = async () => {
+    const trimmed = waiveReasonInput.trim();
+    if (!trimmed) {
+      Alert.alert('Reason Required', 'Please enter a reason for waiving the late fee.');
+      return;
+    }
+    try {
+      await waiveLateFee(payment.id, trimmed);
+      setIsWaived(true);
+      setWaivedReason(trimmed);
+      setShowWaiveModal(false);
+      setWaiveReasonInput('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (onRefresh) onRefresh();
+    } catch {
+      Alert.alert('Error', 'Unable to waive late fee.');
+    }
+  };
+
+  const handleUnwaive = async () => {
+    try {
+      await unwaiveLateFee(payment.id);
+      setIsWaived(false);
+      setWaivedReason('');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (onRefresh) onRefresh();
+    } catch {
+      Alert.alert('Error', 'Unable to restore late fee.');
+    }
+  };
 
   const targetAmount = payment.target_amount;
   const isPaid = payment.status === 'paid';
@@ -357,6 +412,70 @@ function PaymentSheetContent({
               )}
             </View>
 
+            {/* Late Fee Notice Card */}
+            {lateFeeAmount > 0 && (
+              <View
+                style={{
+                  backgroundColor: isWaived
+                    ? (isDark ? 'rgba(16, 185, 129, 0.1)' : '#ECFDF5')
+                    : (isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7'),
+                  borderColor: isWaived
+                    ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0')
+                    : (isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A'),
+                  borderRadius: radii.card,
+                  borderWidth: 1,
+                  padding: spacing.md,
+                  marginBottom: spacing.md,
+                }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1, marginRight: spacing.sm }}>
+                    <Text
+                      style={{
+                        color: isWaived ? colors.paid : colors.accentText,
+                        fontFamily: typography.headingSemiBoldFont,
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                      }}>
+                      Late fees (kept separate)
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.ink,
+                        fontFamily: typography.bodyFont,
+                        fontSize: 13,
+                        marginTop: 4,
+                        lineHeight: 18,
+                      }}>
+                      {isWaived
+                        ? `Late fee: ${formatNaira(lateFeeAmount)} (Waived: ${waivedReason})`
+                        : `Late fee: ${formatNaira(lateFeeAmount)}. Paid ${daysLate} day${daysLate === 1 ? '' : 's'} after the grace period ended.`}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    onPress={isWaived ? handleUnwaive : () => setShowWaiveModal(true)}
+                    style={{
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: spacing.xs,
+                      borderRadius: radii.pill,
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: colors.line,
+                    }}>
+                    <Text
+                      style={{
+                        color: colors.ink,
+                        fontFamily: typography.bodySemiBoldFont,
+                        fontSize: 12,
+                      }}>
+                      {isWaived ? 'Restore Fee' : 'Waive Fee'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {/* Toggle Quick Mark vs Part Payment */}
             <View style={[styles.modeTabs, { backgroundColor: colors.bg, borderRadius: radii.pill }]}>
               <Pressable
@@ -593,6 +712,81 @@ function PaymentSheetContent({
           </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
+
+      {/* Waive Late Fee Modal */}
+      <Modal visible={showWaiveModal} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: spacing.base,
+          }}>
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radii.card,
+              borderColor: colors.line,
+              borderWidth: 1,
+              padding: spacing.lg,
+              width: '100%',
+              maxWidth: 400,
+            }}>
+            <Text
+              style={{
+                color: colors.ink,
+                fontFamily: typography.headingFont,
+                fontSize: 18,
+              }}>
+              Waive Late Fee
+            </Text>
+            <Text
+              style={{
+                color: colors.muted,
+                fontFamily: typography.bodyFont,
+                fontSize: 13,
+                marginVertical: spacing.sm,
+              }}>
+              Please enter a reason for waiving this fee. The reason will remain in the group history record.
+            </Text>
+
+            <TextInput
+              value={waiveReasonInput}
+              onChangeText={setWaiveReasonInput}
+              placeholder="e.g. Bank downtime, granted grace extension"
+              placeholderTextColor={colors.muted}
+              style={{
+                backgroundColor: colors.bg,
+                borderColor: colors.line,
+                borderWidth: 1,
+                borderRadius: radii.card,
+                padding: spacing.md,
+                color: colors.ink,
+                fontFamily: typography.bodyFont,
+                fontSize: 14,
+                marginBottom: spacing.base,
+              }}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm }}>
+              <Button
+                label="Cancel"
+                variant="secondary"
+                onPress={() => {
+                  setShowWaiveModal(false);
+                  setWaiveReasonInput('');
+                }}
+              />
+              <Button
+                label="Confirm Waiver"
+                variant="primary"
+                onPress={handleConfirmWaive}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }

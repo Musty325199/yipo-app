@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   Pressable,
+  Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
@@ -12,6 +13,7 @@ import { ResponsiveContainer } from '@/components/layout/ResponsiveContainer';
 import { MiniRing } from '@/components/ring/MiniRing';
 import { Button } from '@/components/ui/button';
 import { getGroupsSummary, GroupSummary } from '@/db/queries';
+import { PlusBadge, isPlusUnlocked } from '@/utils/plus';
 
 export default function GroupsHomeScreen() {
   const { colors, typography, spacing, radii, isDark, formatNaira } = useTheme();
@@ -36,6 +38,18 @@ export default function GroupsHomeScreen() {
       loadGroups();
     }, [loadGroups])
   );
+
+  const handleNewGroupPress = async () => {
+    const isPlus = await isPlusUnlocked();
+    if (!isPlus && groups.length >= 2) {
+      Alert.alert(
+        'Group Limit Reached',
+        'Standard plan includes up to 2 active groups. Yípo Plus includes unlimited groups.'
+      );
+      return;
+    }
+    router.push('/group/new');
+  };
 
   return (
     <ResponsiveContainer>
@@ -66,7 +80,7 @@ export default function GroupsHomeScreen() {
 
           <Button
             label="+ New group"
-            onPress={() => router.push('/group/new')}
+            onPress={handleNewGroupPress}
             style={{ minHeight: 44, paddingVertical: spacing.sm, paddingHorizontal: spacing.base }}
           />
         </View>
@@ -116,13 +130,45 @@ export default function GroupsHomeScreen() {
         {/* Groups List */}
         {groups.length > 0 && (
           <View>
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.md },
-              ]}>
-              Active groups ({groups.length})
-            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: spacing.md,
+              }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.muted, fontFamily: typography.bodyMediumFont },
+                ]}>
+                Active groups ({groups.length})
+              </Text>
+
+              <Pressable
+                onPress={() => router.push('/reminders')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 5,
+                  backgroundColor: colors.surface,
+                  borderRadius: radii.pill,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                }}>
+                <Text
+                  style={{
+                    color: colors.ink,
+                    fontFamily: typography.bodySemiBoldFont,
+                    fontSize: 12,
+                  }}>
+                  Bulk Reminders
+                </Text>
+                <PlusBadge />
+              </Pressable>
+            </View>
 
             {groups.map((group) => (
               <Pressable

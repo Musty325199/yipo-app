@@ -126,7 +126,7 @@ export default function CalendarScreen() {
                     styles.sectionHeader,
                     { color: colors.unpaid, fontFamily: typography.headingSemiBoldFont, marginBottom: spacing.sm },
                   ]}>
-                  ⚠️ ACTION REQUIRED ({dueTodayOrOverdue.length})
+                  ACTION REQUIRED ({dueTodayOrOverdue.length})
                 </Text>
 
                 {dueTodayOrOverdue.map((item) => (
@@ -304,7 +304,7 @@ export default function CalendarScreen() {
                             styles.completedTag,
                             { color: colors.paid, fontFamily: typography.headingSemiBoldFont },
                           ]}>
-                          ✓ {formatNaira(item.targetAmount)} Handed Over
+                          {formatNaira(item.targetAmount)} Handed Over
                         </Text>
                       </View>
                     </View>

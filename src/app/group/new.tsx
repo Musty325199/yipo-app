@@ -22,6 +22,7 @@ import { DrawOrderModal, DraftMember } from '@/components/ring/DrawOrderModal';
 import { Frequency } from '@/db/schema';
 import { scheduleRoundNotification } from '@/utils/notifications';
 import { getAppSetting, setAppSetting } from '@/utils/security';
+import { PlusBadge } from '@/utils/plus';
 
 export default function NewGroupScreen() {
   const { colors, typography, spacing, radii, isDark, formatNaira } = useTheme();
@@ -33,6 +34,9 @@ export default function NewGroupScreen() {
   const [groupName, setGroupName] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('weekly');
+  const [lateFeeType, setLateFeeType] = useState<'none' | 'fixed' | 'percentage'>('none');
+  const [lateFeeValueStr, setLateFeeValueStr] = useState('');
+  const [lateFeeGraceDaysStr, setLateFeeGraceDaysStr] = useState('0');
 
   // Step 2 fields
   const [members, setMembers] = useState<DraftMember[]>([]);
@@ -184,11 +188,17 @@ export default function NewGroupScreen() {
     try {
       const amount = parseInt(amountStr.replace(/[^0-9]/g, ''), 10);
       const startDate = new Date().toISOString();
+      const lateFeeVal = parseInt(lateFeeValueStr.replace(/[^0-9]/g, ''), 10) || 0;
+      const graceDays = parseInt(lateFeeGraceDaysStr.replace(/[^0-9]/g, ''), 10) || 0;
+
       const groupId = await createGroup({
         name: groupName.trim(),
         contribution_amount: amount,
         frequency,
         start_date: startDate,
+        late_fee_type: lateFeeType,
+        late_fee_value: lateFeeVal,
+        late_fee_grace_days: graceDays,
         members: members.map((m) => ({
           name: m.name,
           phone: m.phone,
@@ -455,6 +465,123 @@ export default function NewGroupScreen() {
                 </View>
               </View>
 
+              {/* Late Fee Rule (Optional Plus Feature) */}
+              <View style={{ marginBottom: spacing.xl }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.xs }}>
+                  <Text style={[styles.label, { color: colors.ink, fontFamily: typography.bodyMediumFont }]}>
+                    Late fee rule (optional)
+                  </Text>
+                  <PlusBadge />
+                </View>
+                <Text
+                  style={{
+                    color: colors.muted,
+                    fontFamily: typography.bodyFont,
+                    fontSize: 12,
+                    marginBottom: spacing.sm,
+                  }}>
+                  Late fees are kept separate and do not change the payout target. You can waive fees at any time.
+                </Text>
+
+                <View style={styles.freqRow}>
+                  {(['none', 'fixed', 'percentage'] as const).map((t) => {
+                    const isSelected = lateFeeType === t;
+                    const label = t === 'none' ? 'None' : t === 'fixed' ? 'Fixed (₦)' : 'Percentage (%)';
+                    return (
+                      <Pressable
+                        key={t}
+                        onPress={() => setLateFeeType(t)}
+                        style={[
+                          styles.freqPill,
+                          {
+                            backgroundColor: isSelected
+                              ? isDark
+                                ? 'rgba(245, 158, 11, 0.25)'
+                                : '#FEF3C7'
+                              : colors.surface,
+                            borderColor: isSelected ? colors.accent : colors.line,
+                            borderRadius: radii.pill,
+                            borderWidth: 1,
+                            paddingVertical: spacing.sm + 2,
+                            paddingHorizontal: spacing.sm,
+                          },
+                        ]}>
+                        <Text
+                          style={[
+                            styles.freqText,
+                            {
+                              color: isSelected ? colors.accentText : colors.muted,
+                              fontFamily: isSelected ? typography.headingSemiBoldFont : typography.bodyFont,
+                            },
+                          ]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {lateFeeType !== 'none' && (
+                  <View style={{ marginTop: spacing.md, gap: spacing.md }}>
+                    <View>
+                      <Text
+                        style={[
+                          styles.label,
+                          { color: colors.ink, fontFamily: typography.bodyMediumFont, fontSize: 13 },
+                        ]}>
+                        {lateFeeType === 'fixed' ? 'Fee Amount (₦)' : 'Fee Percentage (%)'}
+                      </Text>
+                      <TextInput
+                        placeholder={lateFeeType === 'fixed' ? 'e.g. 1000' : 'e.g. 5'}
+                        placeholderTextColor={colors.muted}
+                        keyboardType="numeric"
+                        value={lateFeeValueStr}
+                        onChangeText={setLateFeeValueStr}
+                        style={[
+                          styles.input,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.line,
+                            color: colors.ink,
+                            borderRadius: radii.card,
+                            fontFamily: typography.bodyFont,
+                            padding: spacing.base,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    <View>
+                      <Text
+                        style={[
+                          styles.label,
+                          { color: colors.ink, fontFamily: typography.bodyMediumFont, fontSize: 13 },
+                        ]}>
+                        Grace Period (days after due date)
+                      </Text>
+                      <TextInput
+                        placeholder="e.g. 3"
+                        placeholderTextColor={colors.muted}
+                        keyboardType="numeric"
+                        value={lateFeeGraceDaysStr}
+                        onChangeText={setLateFeeGraceDaysStr}
+                        style={[
+                          styles.input,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.line,
+                            color: colors.ink,
+                            borderRadius: radii.card,
+                            fontFamily: typography.bodyFont,
+                            padding: spacing.base,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                )}
+              </View>
+
               <Button label="Next: Add members →" onPress={handleNextToMembers} />
             </View>
           )}
@@ -652,7 +779,7 @@ export default function NewGroupScreen() {
 
                 <View style={{ marginTop: spacing.md }}>
                   <Button
-                    label="🎲 Spin / Draw Order"
+                    label="Spin / Draw Order"
                     onPress={() => setIsDrawModalOpen(true)}
                   />
                 </View>
@@ -742,7 +869,7 @@ export default function NewGroupScreen() {
               </View>
 
               <Button
-                label={isSaving ? 'Creating group...' : '✓ Finish & Create Group'}
+                label={isSaving ? 'Creating group...' : 'Finish & Create Group'}
                 onPress={handleFinalSave}
                 disabled={isSaving}
               />
