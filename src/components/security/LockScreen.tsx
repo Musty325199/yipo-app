@@ -6,6 +6,9 @@ import {
   Modal,
   TextInput,
   Pressable,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
@@ -76,114 +79,139 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
 
   return (
     <Modal visible={visible} transparent={false} animationType="fade">
-      <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        <View style={styles.content}>
-          {/* Lock Icon Badge */}
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.pill },
-            ]}>
-            <LockIcon size={40} color={colors.accentText} strokeWidth={2} />
-          </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, backgroundColor: colors.bg }}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            { backgroundColor: colors.bg, minHeight: '100%', flexGrow: 1 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            {/* Lock Icon Badge */}
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.pill },
+              ]}>
+              <LockIcon size={40} color={colors.accentText} strokeWidth={2} />
+            </View>
 
-          <Text
-            style={[
-              styles.title,
-              { color: colors.ink, fontFamily: typography.headingFont, marginTop: spacing.lg },
-            ]}>
-            Yípo is Locked
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              { color: colors.muted, fontFamily: typography.bodyFont, marginTop: spacing.xs },
-            ]}>
-            Protecting your offline Ajo and Esusu group records
-          </Text>
-
-          {errorMsg ? (
             <Text
               style={[
-                styles.errorText,
-                { color: colors.unpaid, fontFamily: typography.bodyMediumFont, marginVertical: spacing.md },
+                styles.title,
+                { color: colors.ink, fontFamily: typography.headingFont, marginTop: spacing.lg },
               ]}>
-              {errorMsg}
+              Yípo is Locked
             </Text>
-          ) : (
-            <View style={{ height: spacing.lg }} />
-          )}
+            <Text
+              style={[
+                styles.subtitle,
+                { color: colors.muted, fontFamily: typography.bodyFont, marginTop: spacing.xs },
+              ]}>
+              Protecting your offline Ajo and Esusu group records
+            </Text>
 
-          {!pinMode ? (
-            <View style={styles.actionContainer}>
-              <Button
-                label="Unlock with Phone PIN or Fingerprint"
-                variant="primary"
-                onPress={handleBiometricAuth}
-                style={{ width: '100%', maxWidth: 320 }}
-              />
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setPinMode(true);
-                }}
-                style={{ marginTop: spacing.base, padding: spacing.sm }}>
-                <Text
-                  style={[
-                    styles.pinSwitchText,
-                    { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
-                  ]}>
-                  Use custom Yípo PIN instead
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.pinContainer}>
-              <TextInput
-                value={enteredPin}
-                onChangeText={setEnteredPin}
-                placeholder="Enter 4-digit PIN"
-                placeholderTextColor={colors.muted}
-                keyboardType="numeric"
-                secureTextEntry
-                maxLength={6}
+            {errorMsg ? (
+              <Text
                 style={[
-                  styles.pinInput,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.line,
-                    borderRadius: radii.card,
-                    color: colors.ink,
-                    fontFamily: typography.headingFont,
-                  },
-                ]}
-              />
+                  styles.errorText,
+                  { color: colors.unpaid, fontFamily: typography.bodyMediumFont, marginVertical: spacing.md },
+                ]}>
+                {errorMsg}
+              </Text>
+            ) : (
+              <View style={{ height: spacing.lg }} />
+            )}
 
-              <Button
-                label="Submit PIN"
-                variant="primary"
-                onPress={handleVerifyPin}
-                style={{ width: 200, marginTop: spacing.md }}
-              />
-
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setPinMode(false);
-                }}
-                style={{ marginTop: spacing.base, padding: spacing.sm }}>
+            {!pinMode ? (
+              <View style={styles.actionContainer}>
+                <Button
+                  label="Unlock with Phone PIN or Fingerprint"
+                  variant="primary"
+                  onPress={handleBiometricAuth}
+                  style={{ width: '100%', maxWidth: 320 }}
+                />
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setPinMode(true);
+                  }}
+                  style={{ marginTop: spacing.base, padding: spacing.sm }}>
+                  <Text
+                    style={[
+                      styles.pinSwitchText,
+                      { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
+                    ]}>
+                    Use custom Yípo PIN instead
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.pinContainer}>
                 <Text
-                  style={[
-                    styles.pinSwitchText,
-                    { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
-                  ]}>
-                  Switch to Phone PIN / Fingerprint
+                  style={{
+                    color: colors.muted,
+                    fontFamily: typography.bodyMediumFont,
+                    fontSize: 13,
+                    marginBottom: spacing.xs,
+                  }}>
+                  Enter 4-digit PIN
                 </Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      </View>
+                <TextInput
+                  value={enteredPin}
+                  onChangeText={setEnteredPin}
+                  placeholder="••••"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numeric"
+                  secureTextEntry
+                  maxLength={6}
+                  autoFocus
+                  style={[
+                    styles.pinInput,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.line,
+                      borderRadius: radii.card,
+                      color: colors.ink,
+                      fontFamily: typography.headingFont,
+                      fontSize: 24,
+                      textAlign: 'center',
+                      letterSpacing: 8,
+                      width: 180,
+                      height: 50,
+                    },
+                  ]}
+                />
+
+                <Button
+                  label="Submit PIN"
+                  variant="primary"
+                  onPress={handleVerifyPin}
+                  style={{ width: 180, marginTop: spacing.md }}
+                />
+
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setPinMode(false);
+                  }}
+                  style={{ marginTop: spacing.base, padding: spacing.sm }}>
+                  <Text
+                    style={[
+                      styles.pinSwitchText,
+                      { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
+                    ]}>
+                    Switch to Phone PIN / Fingerprint
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
