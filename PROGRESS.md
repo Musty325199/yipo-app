@@ -148,5 +148,11 @@
       - All members in round paid: offers "Show all members" to record extra payment or skip.
   - Root Layout integration (`src/app/_layout.tsx`):
     - Share intent gated behind app lock; biometric security preserved before revealing receipt details.
+  - Global Contrast, Responsiveness & Zero-Truncation Audit:
+    - Added dedicated `partPaid` color token (`#EA580C` Light, `#FB923C` Dark) to theme definitions for 100% theme consistency across ring, payment drawer, and member profile.
+    - Replaced all remaining hardcoded colors with semantic theme tokens (`colors.onAccent`, `colors.accentText`, `colors.partPaid`).
+    - Fixed collector text contrast in round ring and member list: uses `colors.onAccent` on saffron gold dots to guarantee accessibility compliance in both light and dark modes.
+    - Multi-line text wrapping: Member names and action labels configured to wrap across up to 2 lines (`numberOfLines={2}`, `flexShrink: 1`) so long names never truncate on small screens.
+    - Keyboard interaction: `keyboardShouldPersistTaps="handled"` added to all modal and sheet ScrollViews.
   - Diagnostics: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20 passed).
 - **Known Bugs**: None.

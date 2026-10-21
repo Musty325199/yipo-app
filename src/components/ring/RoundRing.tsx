@@ -129,7 +129,8 @@ export function RoundRing({
                 accentColor={colors.accent}
                 paidColor={colors.paid}
                 unpaidColor={isDark ? '#4A5568' : '#CBD5E1'}
-                partPaidColor="#E07A5F"
+                partPaidColor={colors.partPaid}
+                onAccentColor={colors.onAccent}
                 surfaceColor={colors.surface}
               />
             );
@@ -161,7 +162,9 @@ export function RoundRing({
         </View>
 
         <Text
-          numberOfLines={1}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
           style={[
             styles.collectorNameText,
             { color: colors.ink, fontFamily: typography.headingFont },
@@ -242,6 +245,7 @@ interface RoundDotProps {
   paidColor: string;
   unpaidColor: string;
   partPaidColor: string;
+  onAccentColor: string;
   surfaceColor: string;
 }
 
@@ -259,6 +263,7 @@ function RoundDot({
   paidColor,
   unpaidColor,
   partPaidColor,
+  onAccentColor,
   surfaceColor,
 }: RoundDotProps) {
   const currentAngle = useDerivedValue(() => initialAngle + rotation.value);
@@ -334,7 +339,7 @@ function RoundDot({
 
       {/* Collector inner jewel spotlight */}
       {isCollector && (
-        <Circle cx={cx} cy={cy} r={5} color="#0A1C16" />
+        <Circle cx={cx} cy={cy} r={5} color={onAccentColor} />
       )}
     </Group>
   );

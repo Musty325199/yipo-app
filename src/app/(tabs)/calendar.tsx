@@ -98,7 +98,14 @@ export default function CalendarScreen() {
                 padding: spacing.xl,
               },
             ]}>
-            <View style={[styles.iconWrapper, { marginBottom: spacing.base }]}>
+            <View
+              style={[
+                styles.iconWrapper,
+                {
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                  marginBottom: spacing.base,
+                },
+              ]}>
               <CalendarIcon size={44} color={colors.accentText} strokeWidth={1.8} />
             </View>
             <Text

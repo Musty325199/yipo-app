@@ -128,13 +128,14 @@ export function WhatsAppReminderModal({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: spacing.xl }}>
             <Text
               style={[
                 styles.title,
                 { color: colors.ink, fontFamily: typography.headingFont },
               ]}>
-              Send WhatsApp Reminder
+              Send WhatsApp reminder
             </Text>
             <Text
               style={[
@@ -150,7 +151,7 @@ export function WhatsAppReminderModal({
                 styles.sectionLabel,
                 { color: colors.muted, fontFamily: typography.bodyMediumFont, marginTop: spacing.md },
               ]}>
-              Select Message Tone:
+              Select message tone:
             </Text>
             <View style={[styles.toneRow, { marginVertical: spacing.sm }]}>
               <Pressable
@@ -231,7 +232,7 @@ export function WhatsAppReminderModal({
                 styles.sectionLabel,
                 { color: colors.muted, fontFamily: typography.bodyMediumFont, marginTop: spacing.sm },
               ]}>
-              Preview & Edit:
+              Preview and edit:
             </Text>
             <TextInput
               multiline
@@ -252,7 +253,7 @@ export function WhatsAppReminderModal({
             {/* Send Button */}
             <View style={{ marginTop: spacing.lg }}>
               <Button
-                label="Send via WhatsApp / Share"
+                label="Send via WhatsApp or share"
                 variant="primary"
                 onPress={handleSend}
                 style={{ width: '100%' }}

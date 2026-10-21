@@ -363,6 +363,7 @@ function PaymentSheetContent({
           <ScrollView
             showsVerticalScrollIndicator={false}
             bounces={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: spacing.base }}>
             {/* Member Info Row */}
             <View style={[styles.headerRow, { marginBottom: spacing.xs }]}>
@@ -391,7 +392,7 @@ function PaymentSheetContent({
                     backgroundColor: isPaid
                       ? colors.paid
                       : isPartPaid
-                      ? '#E07A5F'
+                      ? colors.partPaid
                       : colors.bg,
                     borderRadius: radii.pill,
                     paddingHorizontal: 10,
@@ -455,7 +456,7 @@ function PaymentSheetContent({
                     style={[
                       styles.targetAmount,
                       {
-                        color: isPaid ? colors.paid : '#E07A5F',
+                        color: isPaid ? colors.paid : colors.partPaid,
                         fontFamily: typography.headingFont,
                         fontSize: 17,
                       },

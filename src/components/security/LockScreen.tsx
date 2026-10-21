@@ -80,12 +80,12 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
   return (
     <Modal visible={visible} transparent={false} animationType="fade">
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           contentContainerStyle={[
             styles.container,
-            { backgroundColor: colors.bg, minHeight: '100%', flexGrow: 1 },
+            { backgroundColor: colors.bg, minHeight: '100%', flexGrow: 1, paddingBottom: 40 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
@@ -104,7 +104,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                 styles.title,
                 { color: colors.ink, fontFamily: typography.headingFont, marginTop: spacing.lg },
               ]}>
-              Yípo is Locked
+              Yípo is locked
             </Text>
             <Text
               style={[
@@ -129,7 +129,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
             {!pinMode ? (
               <View style={styles.actionContainer}>
                 <Button
-                  label="Unlock with Phone PIN or Fingerprint"
+                  label="Unlock with phone PIN or fingerprint"
                   variant="primary"
                   onPress={handleBiometricAuth}
                   style={{ width: '100%', maxWidth: 320 }}
@@ -163,7 +163,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                 <TextInput
                   value={enteredPin}
                   onChangeText={setEnteredPin}
-                  placeholder="••••"
+                  placeholder="0000"
                   placeholderTextColor={colors.muted}
                   keyboardType="numeric"
                   secureTextEntry
@@ -179,7 +179,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                       fontFamily: typography.headingFont,
                       fontSize: 24,
                       textAlign: 'center',
-                      letterSpacing: 8,
+                      letterSpacing: enteredPin.length > 0 ? 8 : 4,
                       width: 180,
                       height: 50,
                     },
@@ -204,7 +204,7 @@ export function LockScreen({ visible, onUnlocked }: LockScreenProps) {
                       styles.pinSwitchText,
                       { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
                     ]}>
-                    Switch to Phone PIN / Fingerprint
+                    Switch to phone PIN or fingerprint
                   </Text>
                 </Pressable>
               </View>

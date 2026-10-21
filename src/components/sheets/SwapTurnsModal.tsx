@@ -111,13 +111,14 @@ export function SwapTurnsModal({
 
           <ScrollView
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: spacing.xl }}>
             <Text
               style={[
                 styles.title,
                 { color: colors.ink, fontFamily: typography.headingFont },
               ]}>
-              Swap Payout Turns
+              Swap payout turns
             </Text>
             <Text
               style={[
@@ -133,7 +134,7 @@ export function SwapTurnsModal({
                 styles.fieldLabel,
                 { color: colors.muted, fontFamily: typography.bodyMediumFont, marginTop: spacing.base },
               ]}>
-              First Member:
+              First member:
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               {eligible.map((m) => {
@@ -157,7 +158,7 @@ export function SwapTurnsModal({
                       style={[
                         styles.memberPillText,
                         {
-                          color: isSelected ? '#0A1C16' : colors.muted,
+                          color: isSelected ? colors.onAccent : colors.muted,
                           fontFamily: typography.bodySemiBoldFont,
                         },
                       ]}>
@@ -174,7 +175,7 @@ export function SwapTurnsModal({
                 styles.fieldLabel,
                 { color: colors.muted, fontFamily: typography.bodyMediumFont, marginTop: spacing.md },
               ]}>
-              Second Member (To Swap With):
+              Second member (to swap with):
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
               {eligible.map((m) => {
@@ -198,7 +199,7 @@ export function SwapTurnsModal({
                       style={[
                         styles.memberPillText,
                         {
-                          color: isSelected ? '#0A1C16' : colors.muted,
+                          color: isSelected ? colors.onAccent : colors.muted,
                           fontFamily: typography.bodySemiBoldFont,
                         },
                       ]}>
@@ -228,7 +229,7 @@ export function SwapTurnsModal({
                     styles.previewHeader,
                     { color: colors.muted, fontFamily: typography.bodyMediumFont },
                   ]}>
-                  Result of Swap:
+                  Result of swap:
                 </Text>
                 <Text
                   style={[
@@ -253,7 +254,7 @@ export function SwapTurnsModal({
                 styles.fieldLabel,
                 { color: colors.muted, fontFamily: typography.bodyMediumFont, marginTop: spacing.sm },
               ]}>
-              Reason for Swap (Mandatory):
+              Reason for swap (mandatory):
             </Text>
             <TextInput
               value={reason}
@@ -275,7 +276,7 @@ export function SwapTurnsModal({
             {/* Action Button */}
             <View style={{ marginTop: spacing.lg }}>
               <Button
-                label="Confirm & Execute Swap"
+                label="Confirm and execute swap"
                 variant="primary"
                 disabled={isSwapping}
                 onPress={handleExecuteSwap}

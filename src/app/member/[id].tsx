@@ -61,7 +61,7 @@ export default function MemberProfileScreen() {
     scoreColor = colors.unpaid;
     scoreBadge = 'High Risk (Frequently Late)';
   } else if (reliabilityScore < 85) {
-    scoreColor = '#E07A5F';
+    scoreColor = colors.partPaid;
     scoreBadge = 'Fair (Occasional Delays)';
   }
 
@@ -115,7 +115,7 @@ export default function MemberProfileScreen() {
               <Text
                 style={[
                   styles.avatarInitial,
-                  { color: '#0A1C16', fontFamily: typography.headingFont },
+                  { color: colors.onAccent, fontFamily: typography.headingFont },
                 ]}>
                 {member.name.charAt(0).toUpperCase()}
               </Text>
@@ -267,7 +267,7 @@ export default function MemberProfileScreen() {
               <Text
                 style={[
                   styles.statPillNum,
-                  { color: '#E07A5F', fontFamily: typography.headingFont },
+                  { color: colors.partPaid, fontFamily: typography.headingFont },
                 ]}>
                 {lateCount}
               </Text>
@@ -413,7 +413,7 @@ export default function MemberProfileScreen() {
                       style={[
                         styles.historyAmount,
                         {
-                          color: isPaid ? colors.paid : isPartPaid ? '#E07A5F' : colors.ink,
+                          color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.ink,
                           fontFamily: typography.headingSemiBoldFont,
                         },
                       ]}>
@@ -423,7 +423,7 @@ export default function MemberProfileScreen() {
                       style={[
                         styles.historyStatus,
                         {
-                          color: isPaid ? colors.paid : isPartPaid ? '#E07A5F' : colors.unpaid,
+                          color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.unpaid,
                           fontFamily: typography.bodyMediumFont,
                         },
                       ]}>

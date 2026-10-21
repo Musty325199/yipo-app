@@ -437,7 +437,7 @@ export function ShareReceiptModal({
                             </Text>
                           </View>
                           <Text
-                            numberOfLines={1}
+                            numberOfLines={2}
                             style={{
                               color: colors.ink,
                               fontFamily: typography.headingSemiBoldFont,

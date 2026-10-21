@@ -682,14 +682,14 @@ export default function GroupRoundScreen() {
               ]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: spacing.sm }}>
                 <Text
-                  numberOfLines={1}
+                  numberOfLines={2}
                   style={{
                     color: colors.ink,
                     fontFamily: typography.headingSemiBoldFont,
                     fontSize: 14,
                     flexShrink: 1,
                   }}>
-                  Export Statement
+                  Export statement
                 </Text>
                 <PlusBadge />
               </View>
@@ -717,14 +717,14 @@ export default function GroupRoundScreen() {
               ]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: spacing.sm }}>
                 <Text
-                  numberOfLines={1}
+                  numberOfLines={2}
                   style={{
                     color: colors.ink,
                     fontFamily: typography.headingSemiBoldFont,
                     fontSize: 14,
                     flexShrink: 1,
                   }}>
-                  Bulk Reminders ({unpaidCount})
+                  Bulk reminders ({unpaidCount})
                 </Text>
                 <PlusBadge />
               </View>
@@ -809,7 +809,7 @@ export default function GroupRoundScreen() {
                         : isPaid
                         ? colors.paid
                         : isPartPaid
-                        ? '#E07A5F'
+                        ? colors.partPaid
                         : colors.bg,
                       borderRadius: radii.pill,
                       borderWidth: isPaid || isCollector || isPartPaid ? 0 : 1,
@@ -819,20 +819,26 @@ export default function GroupRoundScreen() {
                   <Text
                     style={[
                       styles.turnText,
-                      { color: isPaid || isCollector || isPartPaid ? '#FFFFFF' : colors.ink },
+                      {
+                        color: isCollector
+                          ? colors.onAccent
+                          : isPaid || isPartPaid
+                          ? '#FFFFFF'
+                          : colors.ink,
+                      },
                     ]}>
                     {isPaid ? '✓' : `#${p.turn_order}`}
                   </Text>
                 </Pressable>
 
                 {/* Member Info */}
-                <View style={{ flex: 1, marginLeft: spacing.md }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1, marginLeft: spacing.md, marginRight: spacing.xs }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                     <Text
-                      numberOfLines={1}
+                      numberOfLines={2}
                       style={[
                         styles.memberName,
-                        { color: colors.ink, fontFamily: typography.headingSemiBoldFont },
+                        { color: colors.ink, fontFamily: typography.headingSemiBoldFont, flexShrink: 1 },
                       ]}>
                       {p.member_name}
                     </Text>
@@ -882,7 +888,7 @@ export default function GroupRoundScreen() {
                     style={[
                       styles.amountStatus,
                       {
-                        color: isPaid ? colors.paid : isPartPaid ? '#E07A5F' : colors.ink,
+                        color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.ink,
                         fontFamily: typography.headingSemiBoldFont,
                       },
                     ]}>
@@ -896,7 +902,7 @@ export default function GroupRoundScreen() {
                     style={[
                       styles.statusSubText,
                       {
-                        color: isPaid ? colors.paid : isPartPaid ? '#E07A5F' : colors.unpaid,
+                        color: isPaid ? colors.paid : isPartPaid ? colors.partPaid : colors.unpaid,
                         fontFamily: typography.bodyFont,
                       },
                     ]}>
@@ -1112,7 +1118,7 @@ export default function GroupRoundScreen() {
             },
           ]}>
           <Text
-            numberOfLines={1}
+            numberOfLines={2}
             style={{
               color: '#FFFFFF',
               fontFamily: typography.bodyMediumFont,
@@ -1295,7 +1301,6 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 15,
-    maxWidth: 160,
   },
   collectorPill: {
     marginLeft: 6,

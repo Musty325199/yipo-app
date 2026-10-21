@@ -67,7 +67,7 @@ export function MiniRing({
                   cx={dot.cx}
                   cy={dot.cy}
                   r={3}
-                  color="#0A1C16"
+                  color={colors.onAccent}
                 />
               )}
             </React.Fragment>

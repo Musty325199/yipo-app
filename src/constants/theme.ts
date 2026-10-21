@@ -8,6 +8,7 @@ export interface ColorTokens {
   accentText: string;
   onAccent: string;
   paid: string;
+  partPaid: string;
   unpaid: string;
 }
 
@@ -21,6 +22,7 @@ export const LightColors: ColorTokens = {
   accentText: '#B45309',
   onAccent: '#0A1C16',
   paid: '#10B981',
+  partPaid: '#EA580C',
   unpaid: '#EF4444',
 };
 
@@ -34,6 +36,7 @@ export const DarkColors: ColorTokens = {
   accentText: '#FCD34D',
   onAccent: '#081410',
   paid: '#10B981',
+  partPaid: '#FB923C',
   unpaid: '#F87171',
 };
 

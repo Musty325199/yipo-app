@@ -427,7 +427,7 @@ export default function BulkRemindersScreen() {
                           style={[
                             styles.itemAmount,
                             {
-                              color: isPart ? '#E07A5F' : colors.unpaid,
+                              color: isPart ? colors.partPaid : colors.unpaid,
                               fontFamily: typography.headingFont,
                             },
                           ]}>

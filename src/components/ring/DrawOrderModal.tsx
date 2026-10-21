@@ -227,6 +227,7 @@ export function DrawOrderModal({
                       rotation={rotation}
                       isCollector={isCurrent}
                       accentColor={colors.accent}
+                      onAccentColor={colors.onAccent}
                       inkColor={colors.ink}
                       surfaceColor={colors.surface}
                     />
@@ -263,7 +264,7 @@ export function DrawOrderModal({
                     style={[
                       styles.orderBadgeText,
                       {
-                        color: idx === 0 ? '#0A1C16' : colors.ink,
+                        color: idx === 0 ? colors.onAccent : colors.ink,
                         fontFamily: typography.headingSemiBoldFont,
                         fontWeight: '700',
                       },
@@ -301,7 +302,7 @@ export function DrawOrderModal({
                     <Text
                       style={[
                         styles.collectorTag,
-                        { color: '#B45309', fontFamily: typography.bodySemiBoldFont },
+                        { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
                       ]}>
                       Collects first
                     </Text>
@@ -341,6 +342,7 @@ interface AnimatedDotProps {
   rotation: SharedValue<number>;
   isCollector: boolean;
   accentColor: string;
+  onAccentColor: string;
   inkColor: string;
   surfaceColor: string;
 }
@@ -350,6 +352,7 @@ function AnimatedDot({
   rotation,
   isCollector,
   accentColor,
+  onAccentColor,
   inkColor,
   surfaceColor,
 }: AnimatedDotProps) {
@@ -383,7 +386,7 @@ function AnimatedDot({
       />
       {/* Inner collector spotlight center */}
       {isCollector && (
-        <Circle cx={cx} cy={cy} r={5} color="#0A1C16" />
+        <Circle cx={cx} cy={cy} r={5} color={onAccentColor} />
       )}
     </Group>
   );

@@ -246,7 +246,7 @@ export function PickContactsModal({
 
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
                     <Text
-                      numberOfLines={1}
+                      numberOfLines={2}
                       style={{
                         color: colors.ink,
                         fontFamily: typography.headingSemiBoldFont,
