@@ -188,5 +188,8 @@
   - Optimized Late Fee card to render only when late fee rules apply or fee is incurred, saving vertical real estate.
   - Increased drawer maxHeight to 94% to display all content comfortably.
   - Added "Edit Member ✎" modal to Member Profile Screen (`src/app/member/[id].tsx`) and atomic `updateMemberDetails` query to `src/db/queries.ts` for updating member name and phone number with Nigerian phone normalization.
+  - Universal Device Compatibility:
+    - Updated `plugins/withAndroidArchitectures.js` to compile native binaries for both 32-bit (`armeabi-v7a`) and 64-bit (`arm64-v8a`) ARM architectures.
+    - Resolves `INSTALL_FAILED_NO_MATCHING_ABIS` ("App not compatible with your device") on budget Android phones (Tecno, Infinix, itel, Samsung Galaxy Core / A0x series).
   - Diagnostics: `tsc` (0 errors), `lint` (0 errors).
 - **Known Bugs**: None.
