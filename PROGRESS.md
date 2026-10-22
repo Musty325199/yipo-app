@@ -1,7 +1,7 @@
 # Yípo Progress Tracker
 
 ## Status Overview
-- **Current Stage**: Stage 9: Fast setup & Stage 10: Share to Yípo (Complete & Verified)
+- **Current Stage**: Stage 11: Release Preparation & External Distribution (Complete)
 - **Command to Run App**:
   - Preview APK Build: `npx eas-cli build --profile preview --platform android`
   - Dev Client: `npx expo start --dev-client`
@@ -162,4 +162,21 @@
     - Multi-Image Share Intent: Registered `androidMultiIntentFilters` in `app.json` for `image/*` so Yípo appears in the Android share sheet when sharing batches of 2 or more receipts simultaneously.
     - Draggable Drawer Dismissal: Added swipe-down-to-dismiss gesture handling on `PaymentBottomSheet`, `WhatsAppReminderModal`, `SwapTurnsModal`, and `ShareReceiptModal` with natural spring-back and threshold dismissal.
   - Diagnostics: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20 passed).
+- **Known Bugs**: None.
+
+### [x] Stage 11: Release Preparation & External Distribution
+- **Finished**:
+  - Signing Key Architecture:
+    - Verified package `com.musty.yipo` is locked across `app.json` and all `eas.json` profiles (`development`, `preview`, `production`).
+    - Verified that all profiles share the identical EAS Remote Managed release keystore.
+    - Added `credentials.json` to `.gitignore` to prevent any local credentials from ever being staged or committed.
+  - Monotonic Version Sequencing:
+    - Configured `appVersionSource: "remote"` in `eas.json` under `cli`.
+    - Enabled `autoIncrement: true` for both `preview` and `production` profiles.
+    - Bumped initial release baseline `versionCode` in `app.json` to `2` with `version: "1.0.0"` to guarantee in-place upgrade over installed dev build (`versionCode: 1`).
+  - Public GitHub Repository Documentation:
+    - Created comprehensive `README.md` for public repo (`yipo-app`) with non-monetary ledger disclaimer, feature list, step-by-step Android APK installation, Play Protect bypass guidance, offline backup instructions, screenshot placeholders, and developer WhatsApp contact (`09065323916`).
+  - Signing Documentation & Verification:
+    - Created `SIGNING-NOTES.md` documenting public verification steps via `apksigner` and `keytool`, zero-secrets rule, and Google Play Console PEPK key export workflow to guarantee seamless data retention when migrating from GitHub to Google Play.
+  - Diagnostics: `tsc` (0 errors), `lint` (0 errors).
 - **Known Bugs**: None.
