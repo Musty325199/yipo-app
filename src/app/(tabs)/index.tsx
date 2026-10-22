@@ -12,6 +12,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { ResponsiveContainer } from '@/components/layout/ResponsiveContainer';
 import { MiniRing } from '@/components/ring/MiniRing';
 import { Button } from '@/components/ui/button';
+import { CommunityBanner } from '@/components/ui/CommunityBanner';
 import { getGroupsSummary, GroupSummary } from '@/db/queries';
 import { PlusBadge, isPlusUnlocked } from '@/utils/plus';
 
@@ -84,6 +85,9 @@ export default function GroupsHomeScreen() {
             style={{ minHeight: 44, paddingVertical: spacing.sm, paddingHorizontal: spacing.base }}
           />
         </View>
+
+        {/* Community & Broadcast Banner */}
+        <CommunityBanner />
 
         {/* Empty State (when no groups exist) */}
         {!loading && groups.length === 0 && (

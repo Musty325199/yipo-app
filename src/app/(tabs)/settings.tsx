@@ -8,6 +8,7 @@ import {
   Switch,
   TextInput,
   Alert,
+  Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
@@ -514,6 +515,70 @@ export default function SettingsScreen() {
                 style={{ width: '100%' }}
               />
             </View>
+          </View>
+        </View>
+
+        {/* Community & Support Section */}
+        <View style={{ marginBottom: spacing.lg }}>
+          <Text
+            style={[
+              styles.sectionHeader,
+              { color: colors.muted, fontFamily: typography.bodyMediumFont, marginBottom: spacing.sm },
+            ]}>
+            COMMUNITY & SUPPORT
+          </Text>
+
+          <View
+            style={[
+              styles.settingCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: radii.card,
+                borderColor: colors.line,
+                borderWidth: isDark ? 1 : 0,
+                padding: spacing.base,
+              },
+            ]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <View
+                style={{
+                  backgroundColor: '#25D366',
+                  borderRadius: radii.pill,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>
+                  WHATSAPP
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.itemTitle,
+                  { color: colors.ink, fontFamily: typography.headingSemiBoldFont, fontSize: 16 },
+                ]}>
+                Yípo Organizers Community
+              </Text>
+            </View>
+
+            <Text
+              style={[
+                styles.itemSubtitle,
+                { color: colors.muted, fontFamily: typography.bodyFont, marginTop: 2, marginBottom: spacing.base },
+              ]}>
+              Connect directly with the developer and fellow Ajo organizers on WhatsApp for updates, questions, and feature requests.
+            </Text>
+
+            <Button
+              label="Connect on WhatsApp →"
+              variant="secondary"
+              onPress={() => {
+                Linking.openURL(
+                  'https://wa.me/2349065323916?text=' +
+                    encodeURIComponent('Hello Mustapha, I am using Yípo app and want to connect!')
+                );
+              }}
+              style={{ width: '100%' }}
+            />
           </View>
         </View>
 
