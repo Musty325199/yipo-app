@@ -10,6 +10,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  PanResponder,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +18,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { ShareIntentFile } from 'expo-share-intent';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +54,39 @@ export function ShareReceiptModal({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Drag down to close gesture
+  const translateY = useSharedValue(0);
+
+  const containerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 0) {
+            translateY.value = gestureState.dy;
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+            translateY.value = withTiming(600, { duration: 200 }, (finished) => {
+              if (finished) {
+                runOnJS(onClose)();
+                translateY.value = 0;
+              }
+            });
+          } else {
+            translateY.value = withSpring(0, { damping: 15, stiffness: 300 });
+          }
+        },
+      }),
+    [onClose, translateY]
+  );
 
   // Group & Round data
   const [allGroups, setAllGroups] = useState<GroupRecord[]>([]);
@@ -218,9 +259,10 @@ export function ShareReceiptModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: colors.surface }]}>
-        {/* Header */}
+      <Animated.View style={[styles.container, { backgroundColor: colors.surface }, containerAnimatedStyle]}>
+        {/* Header (with drag down to dismiss) */}
         <View
+          {...panResponder.panHandlers}
           style={[
             styles.header,
             {
@@ -567,7 +609,7 @@ export function ShareReceiptModal({
             />
           </View>
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

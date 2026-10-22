@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  PanResponder,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -20,9 +21,15 @@ import Animated, {
   FadeOut,
   SlideInDown,
   SlideOutDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
+import { ImageViewerModal } from '@/components/ui/ImageViewerModal';
 import { MemberRecord, PaymentRecord, GroupRecord } from '@/db/schema';
 import { unwaiveLateFee } from '@/db/queries';
 
@@ -89,7 +96,41 @@ function PaymentSheetContent({
   const [receiptUri, setReceiptUri] = useState<string | null>(
     payment.receipt_image_uri || null
   );
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Drag down to close gesture
+  const translateY = useSharedValue(0);
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 0) {
+            translateY.value = gestureState.dy;
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+            translateY.value = withTiming(600, { duration: 200 }, (finished) => {
+              if (finished) {
+                runOnJS(onClose)();
+                translateY.value = 0;
+              }
+            });
+          } else {
+            translateY.value = withSpring(0, { damping: 15, stiffness: 300 });
+          }
+        },
+      }),
+    [onClose, translateY]
+  );
 
   // Late fee state & calculations
   const policyFee =
@@ -350,9 +391,10 @@ function PaymentSheetContent({
               borderColor: colors.line,
               borderTopWidth: 1,
             },
+            sheetAnimatedStyle,
           ]}>
           {/* Grab Handle */}
-          <View style={styles.handleContainer}>
+          <View {...panResponder.panHandlers} style={styles.handleContainer}>
             <View
               style={[
                 styles.handle,
@@ -755,16 +797,36 @@ function PaymentSheetContent({
                       padding: spacing.sm,
                     },
                   ]}>
-                  <Image source={{ uri: receiptUri }} style={styles.receiptThumb} />
+                  <Pressable
+                    onPress={() => setShowReceiptViewer(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="View full size receipt photo">
+                    <Image source={{ uri: receiptUri }} style={styles.receiptThumb} />
+                  </Pressable>
                   <View style={styles.receiptActions}>
-                    <Text
-                      style={[
-                        styles.receiptSuccessText,
-                        { color: colors.paid, fontFamily: typography.bodySemiBoldFont },
-                      ]}>
-                      Receipt attached
-                    </Text>
-                    <Pressable onPress={() => setReceiptUri(null)}>
+                    <Pressable
+                      onPress={() => setShowReceiptViewer(true)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel="View full size receipt photo">
+                      <Text
+                        style={[
+                          styles.receiptSuccessText,
+                          { color: colors.paid, fontFamily: typography.bodySemiBoldFont },
+                        ]}>
+                        Receipt attached
+                      </Text>
+                      <Text
+                        style={{
+                          color: colors.accentText,
+                          fontFamily: typography.bodyMediumFont,
+                          fontSize: 12,
+                          marginTop: 2,
+                        }}>
+                        Tap to view full size →
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => setReceiptUri(null)} style={{ marginTop: 4 }}>
                       <Text
                         style={[
                           styles.removeReceiptText,
@@ -991,6 +1053,14 @@ function PaymentSheetContent({
           </View>
         </View>
       </Modal>
+
+      {/* Full-Screen Receipt Image Viewer */}
+      <ImageViewerModal
+        visible={showReceiptViewer}
+        imageUri={receiptUri}
+        onClose={() => setShowReceiptViewer(false)}
+        title={`Receipt: ${member.name}`}
+      />
     </Modal>
   );
 }

@@ -158,5 +158,8 @@
     - Modal Safe Insets: Added dynamic `useSafeAreaInsets()` to `PasteListModal`, `PickContactsModal`, and `ShareReceiptModal` so headers and Cancel buttons are never cut off by camera punch holes or status bars.
     - Pick Contacts Resilience: Switched to `expo-contacts/legacy` with JavaScript alphabetical sorting to ensure faultless contacts loading on Android and Samsung devices.
     - Restored Payment Drawer: Restored full-width spacious layout, large part-payment & note inputs, always-visible late fee card with Apply/Waive/Restore actions, and "View reliability history" link.
+    - Full-Screen Receipt Preview: Added `ImageViewerModal` to allow organizers to tap receipt thumbnails in both the payment drawer and member profile history to view receipts in full size and high sharpness.
+    - Multi-Image Share Intent: Registered `androidMultiIntentFilters` in `app.json` for `image/*` so Yípo appears in the Android share sheet when sharing batches of 2 or more receipts simultaneously.
+    - Draggable Drawer Dismissal: Added swipe-down-to-dismiss gesture handling on `PaymentBottomSheet`, `WhatsAppReminderModal`, `SwapTurnsModal`, and `ShareReceiptModal` with natural spring-back and threshold dismissal.
   - Diagnostics: `tsc` (0 errors), `lint` (0 errors), `expo-doctor` (20/20 passed).
 - **Known Bugs**: None.

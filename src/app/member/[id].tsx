@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
 import { ResponsiveContainer } from '@/components/layout/ResponsiveContainer';
 import { Button } from '@/components/ui/button';
+import { ImageViewerModal } from '@/components/ui/ImageViewerModal';
 import { getMemberReliabilityProfile, MemberProfileData } from '@/db/queries';
 import { sendWhatsAppOrShare } from '@/utils/whatsapp';
 
@@ -21,6 +22,7 @@ export default function MemberProfileScreen() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<MemberProfileData | null>(null);
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -433,15 +435,36 @@ export default function MemberProfileScreen() {
                 </View>
 
                 {p.receiptUri && (
-                  <View style={{ marginTop: spacing.sm }}>
+                  <Pressable
+                    onPress={() => setPreviewImageUri(p.receiptUri)}
+                    accessibilityRole="button"
+                    accessibilityLabel="View full size receipt photo"
+                    style={{ marginTop: spacing.sm }}>
                     <Image source={{ uri: p.receiptUri }} style={styles.receiptPreview} />
-                  </View>
+                    <Text
+                      style={{
+                        color: colors.accentText,
+                        fontSize: 12,
+                        fontFamily: typography.bodyMediumFont,
+                        marginTop: 4,
+                      }}>
+                      Tap photo to view full size →
+                    </Text>
+                  </Pressable>
                 )}
               </View>
             );
           })}
         </View>
       </ScrollView>
+
+      {/* Full-Screen Receipt Image Viewer */}
+      <ImageViewerModal
+        visible={Boolean(previewImageUri)}
+        imageUri={previewImageUri}
+        onClose={() => setPreviewImageUri(null)}
+        title={`Receipt: ${data?.member.name || 'Member'}`}
+      />
     </ResponsiveContainer>
   );
 }

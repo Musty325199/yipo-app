@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,9 +9,20 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  PanResponder,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,6 +77,39 @@ export function WhatsAppReminderModal({
     })
   );
 
+  // Drag down to close gesture
+  const translateY = useSharedValue(0);
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 0) {
+            translateY.value = gestureState.dy;
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+            translateY.value = withTiming(600, { duration: 200 }, (finished) => {
+              if (finished) {
+                runOnJS(onClose)();
+                translateY.value = 0;
+              }
+            });
+          } else {
+            translateY.value = withSpring(0, { damping: 15, stiffness: 300 });
+          }
+        },
+      }),
+    [onClose, translateY]
+  );
+
   const handleSelectTone = (newTone: ReminderTone) => {
     Haptics.selectionAsync();
     setTone(newTone);
@@ -116,8 +160,9 @@ export function WhatsAppReminderModal({
               borderColor: colors.line,
               borderTopWidth: 1,
             },
+            sheetAnimatedStyle,
           ]}>
-          <View style={styles.handleContainer}>
+          <View {...panResponder.panHandlers} style={styles.handleContainer}>
             <View
               style={[
                 styles.handle,
