@@ -1,9 +1,9 @@
 const { withGradleProperties } = require('@expo/config-plugins');
 
 /**
- * Ensures Gradle only builds for arm64-v8a on Android and constrains
- * JVM heap / concurrency to prevent Out-Of-Memory daemon termination
- * during C++ CMake compilation on EAS cloud builders.
+ * Ensures Gradle builds for both 32-bit (armeabi-v7a) and 64-bit (arm64-v8a) ARM
+ * architectures so that Yípo runs on ALL physical Android devices (Tecno, Infinix,
+ * itel, Samsung, Xiaomi) while constraining concurrency to avoid memory spikes on EAS.
  */
 module.exports = function withAndroidArchitectures(config) {
   return withGradleProperties(config, (config) => {
@@ -17,12 +17,12 @@ module.exports = function withAndroidArchitectures(config) {
     config.modResults.push({
       type: 'property',
       key: 'reactNativeArchitectures',
-      value: 'arm64-v8a',
+      value: 'armeabi-v7a,arm64-v8a',
     });
     config.modResults.push({
       type: 'property',
       key: 'org.gradle.jvmargs',
-      value: '-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+UseParallelGC',
+      value: '-Xmx3072m -XX:MaxMetaspaceSize=512m -XX:+UseParallelGC',
     });
     config.modResults.push({
       type: 'property',
