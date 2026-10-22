@@ -6,6 +6,10 @@ import {
   ScrollView,
   Pressable,
   Image,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,8 +17,9 @@ import { useTheme } from '@/context/ThemeContext';
 import { ResponsiveContainer } from '@/components/layout/ResponsiveContainer';
 import { Button } from '@/components/ui/button';
 import { ImageViewerModal } from '@/components/ui/ImageViewerModal';
-import { getMemberReliabilityProfile, MemberProfileData } from '@/db/queries';
+import { getMemberReliabilityProfile, MemberProfileData, updateMemberDetails } from '@/db/queries';
 import { sendWhatsAppOrShare } from '@/utils/whatsapp';
+import { normalizeNigerianPhone, formatPhoneForDisplay } from '@/utils/phone';
 
 export default function MemberProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +28,13 @@ export default function MemberProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<MemberProfileData | null>(null);
   const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
+
+  // Edit member details state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editError, setEditError] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,6 +84,62 @@ export default function MemberProfileScreen() {
     await sendWhatsAppOrShare(member.phone, `Hello ${member.name}, reaching out from ${groupName}.`);
   };
 
+  const handleOpenEdit = () => {
+    if (!member) return;
+    setEditName(member.name);
+    setEditPhone(member.phone ? (member.phone.startsWith('234') ? '0' + member.phone.slice(3) : member.phone) : '');
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!member) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
+      setEditError('Member name cannot be empty');
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError('');
+    try {
+      let normalized = '';
+      let formatted = 'No phone number';
+      const trimmedPhone = editPhone.trim();
+      if (trimmedPhone) {
+        const norm = normalizeNigerianPhone(trimmedPhone);
+        if (!norm) {
+          setEditError('Please enter a valid 11-digit phone number (or leave blank)');
+          setSavingEdit(false);
+          return;
+        }
+        normalized = norm;
+        formatted = formatPhoneForDisplay(norm);
+      }
+
+      await updateMemberDetails(member.id, trimmedName, normalized, formatted);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              member: {
+                ...prev.member,
+                name: trimmedName,
+                phone: normalized,
+                formatted_phone: formatted,
+              },
+            }
+          : prev
+      );
+      setShowEditModal(false);
+    } catch {
+      setEditError('Failed to save changes. Please try again.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <ResponsiveContainer>
       <ScrollView
@@ -81,7 +149,16 @@ export default function MemberProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         {/* Navigation Bar */}
-        <View style={[styles.navBar, { marginVertical: spacing.md }]}>
+        <View
+          style={[
+            styles.navBar,
+            {
+              marginVertical: spacing.md,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            },
+          ]}>
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}>
@@ -91,6 +168,29 @@ export default function MemberProfileScreen() {
                 { color: colors.accentText, fontFamily: typography.bodySemiBoldFont },
               ]}>
               ← Back
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleOpenEdit}
+            style={({ pressed }) => [
+              {
+                paddingHorizontal: spacing.md,
+                paddingVertical: 7,
+                borderRadius: radii.pill,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.line,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}>
+            <Text
+              style={{
+                color: colors.ink,
+                fontFamily: typography.bodySemiBoldFont,
+                fontSize: 13,
+              }}>
+              Edit Member ✎
             </Text>
           </Pressable>
         </View>
@@ -465,6 +565,142 @@ export default function MemberProfileScreen() {
         onClose={() => setPreviewImageUri(null)}
         title={`Receipt: ${data?.member.name || 'Member'}`}
       />
+
+      {/* Edit Member Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            justifyContent: 'center',
+            padding: spacing.base,
+          }}>
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radii.card,
+              padding: spacing.lg,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: colors.line,
+            }}>
+            <Text
+              style={{
+                color: colors.ink,
+                fontFamily: typography.headingFont,
+                fontSize: 20,
+                marginBottom: spacing.xs,
+              }}>
+              Edit Member
+            </Text>
+            <Text
+              style={{
+                color: colors.muted,
+                fontFamily: typography.bodyFont,
+                fontSize: 13,
+                marginBottom: spacing.base,
+              }}>
+              Update name or phone number for Turn #{member.turn_order}.
+            </Text>
+
+            {editError ? (
+              <View
+                style={{
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                  borderRadius: radii.card,
+                  padding: spacing.sm,
+                  marginBottom: spacing.md,
+                }}>
+                <Text
+                  style={{
+                    color: colors.unpaid,
+                    fontFamily: typography.bodyMediumFont,
+                    fontSize: 13,
+                  }}>
+                  {editError}
+                </Text>
+              </View>
+            ) : null}
+
+            <Text
+              style={{
+                color: colors.muted,
+                fontFamily: typography.bodyMediumFont,
+                fontSize: 13,
+                marginBottom: 6,
+              }}>
+              Full Name
+            </Text>
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Member Name"
+              placeholderTextColor={colors.muted}
+              style={{
+                backgroundColor: colors.bg,
+                color: colors.ink,
+                borderColor: colors.line,
+                borderWidth: 1,
+                borderRadius: radii.card,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 12,
+                fontSize: 16,
+                fontFamily: typography.bodyFont,
+                marginBottom: spacing.base,
+              }}
+            />
+
+            <Text
+              style={{
+                color: colors.muted,
+                fontFamily: typography.bodyMediumFont,
+                fontSize: 13,
+                marginBottom: 6,
+              }}>
+              Phone Number (optional)
+            </Text>
+            <TextInput
+              value={editPhone}
+              onChangeText={setEditPhone}
+              placeholder="e.g. 08012345678"
+              placeholderTextColor={colors.muted}
+              keyboardType="phone-pad"
+              style={{
+                backgroundColor: colors.bg,
+                color: colors.ink,
+                borderColor: colors.line,
+                borderWidth: 1,
+                borderRadius: radii.card,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 12,
+                fontSize: 16,
+                fontFamily: typography.bodyFont,
+                marginBottom: spacing.lg,
+              }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <Button
+                label="Cancel"
+                variant="secondary"
+                onPress={() => setShowEditModal(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                label={savingEdit ? 'Saving...' : 'Save Changes'}
+                variant="primary"
+                disabled={savingEdit}
+                onPress={handleSaveEdit}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ResponsiveContainer>
   );
 }

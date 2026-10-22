@@ -180,3 +180,13 @@
     - Created `SIGNING-NOTES.md` documenting public verification steps via `apksigner` and `keytool`, zero-secrets rule, and Google Play Console PEPK key export workflow to guarantee seamless data retention when migrating from GitHub to Google Play.
   - Diagnostics: `tsc` (0 errors), `lint` (0 errors).
 - **Known Bugs**: None.
+
+### [x] Release Polish: Drawer Physics & Member Editing
+- **Finished**:
+  - Eliminated visual flash across all 4 drawers (`PaymentBottomSheet`, `WhatsAppReminderModal`, `SwapTurnsModal`, `ShareReceiptModal`) by keeping `translateY` offset until modal fully closes, resetting cleanly only upon next open.
+  - Placed "Reset payment back to unpaid" right beneath the Target Card in `PaymentBottomSheet` for instant one-screen visibility without scrolling, while preserving full drawer space and comfortable touch targets.
+  - Optimized Late Fee card to render only when late fee rules apply or fee is incurred, saving vertical real estate.
+  - Increased drawer maxHeight to 94% to display all content comfortably.
+  - Added "Edit Member ✎" modal to Member Profile Screen (`src/app/member/[id].tsx`) and atomic `updateMemberDetails` query to `src/db/queries.ts` for updating member name and phone number with Nigerian phone normalization.
+  - Diagnostics: `tsc` (0 errors), `lint` (0 errors).
+- **Known Bugs**: None.

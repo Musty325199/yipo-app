@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -80,6 +80,12 @@ export function WhatsAppReminderModal({
   // Drag down to close gesture
   const translateY = useSharedValue(0);
 
+  useEffect(() => {
+    if (visible) {
+      translateY.value = 0;
+    }
+  }, [visible, translateY]);
+
   const sheetAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -96,10 +102,9 @@ export function WhatsAppReminderModal({
         },
         onPanResponderRelease: (_, gestureState) => {
           if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-            translateY.value = withTiming(600, { duration: 200 }, (finished) => {
+            translateY.value = withTiming(800, { duration: 220 }, (finished) => {
               if (finished) {
                 runOnJS(onClose)();
-                translateY.value = 0;
               }
             });
           } else {

@@ -895,6 +895,22 @@ export async function updateMemberPhone(
 }
 
 /**
+ * Update member's name and phone number.
+ */
+export async function updateMemberDetails(
+  memberId: string,
+  name: string,
+  phone: string,
+  formattedPhone: string
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE members SET name = ?, phone = ?, formatted_phone = ? WHERE id = ?;`,
+    [name.trim(), phone.trim(), formattedPhone.trim(), memberId]
+  );
+}
+
+/**
  * Get most recently updated active group for receipt sharing.
  */
 export async function getMostRecentActiveGroup(): Promise<GroupRecord | null> {

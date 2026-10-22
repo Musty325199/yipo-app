@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -102,6 +102,10 @@ function PaymentSheetContent({
   // Drag down to close gesture
   const translateY = useSharedValue(0);
 
+  useEffect(() => {
+    translateY.value = 0;
+  }, [payment.id, translateY]);
+
   const sheetAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -118,10 +122,9 @@ function PaymentSheetContent({
         },
         onPanResponderRelease: (_, gestureState) => {
           if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-            translateY.value = withTiming(600, { duration: 200 }, (finished) => {
+            translateY.value = withTiming(800, { duration: 220 }, (finished) => {
               if (finished) {
                 runOnJS(onClose)();
-                translateY.value = 0;
               }
             });
           } else {
@@ -519,7 +522,37 @@ function PaymentSheetContent({
               )}
             </View>
 
-            {/* Late Fee Policy / Waiver Card (Always accessible) */}
+            {/* Quick Reset to Unpaid (Immediate access without scrolling) */}
+            {payment.amount > 0 && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  marginTop: -spacing.xs,
+                  marginBottom: spacing.sm,
+                }}>
+                <Pressable
+                  onPress={() => setShowResetModal(true)}
+                  hitSlop={8}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 4,
+                  }}>
+                  <Text
+                    style={{
+                      color: colors.unpaid,
+                      fontFamily: typography.bodyMediumFont,
+                      fontSize: 13,
+                    }}>
+                    Reset payment back to unpaid ↺
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Late Fee Policy / Waiver Card (Shown when group has late fee rule or fee is applied) */}
+            {(lateFeeAmount > 0 || (group?.late_fee_type && group.late_fee_type !== 'none')) && (
             <View
               style={{
                 backgroundColor: isWaived
@@ -651,6 +684,7 @@ function PaymentSheetContent({
                 </View>
               </View>
             </View>
+            )}
 
             {/* Toggle Quick Mark vs Part Payment */}
             <View style={[styles.modeTabs, { backgroundColor: colors.bg, borderRadius: radii.pill, marginVertical: spacing.sm }]}>
@@ -1077,7 +1111,7 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '92%',
+    maxHeight: '94%',
   },
   handleContainer: {
     alignItems: 'center',
